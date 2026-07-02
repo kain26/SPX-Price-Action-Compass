@@ -1,11 +1,88 @@
-<div align="center">
+# SPX Price Action Compass (SPX 价格行为罗盘)
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+`SPX Price Action Compass` 是一款专为标普500指数（SPX）打造的全栈式、高交互性价格行为（Price Action）深度分析与复盘系统。它集成了多周期行情图表、日内高精精细走势下钻、自动价格行为模式识别、支撑/阻力位（S&R）动态检测，并配合基于大模型的专业价格行为教练，助力投资者快速精通盘面结构。
 
-  <h1>Built with AI Studio</h2>
+该项目完全开源，无任何广告及无关商业跟踪组件，专为注重技术分析与流畅体验的交易员和研究者设计。
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+---
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
+## 🌟 核心特性 (Key Features)
 
-</div>
+- **📈 多周期券商级K线展示 (Multi-Timeframe Charts)**
+  - 支持 **1分钟（1m K）**、**5分钟（5m K）**、**15分钟（15m K）**、**4小时（4h K）** 以及 **日线（日 K）**。
+  - 数据由后端直连 Yahoo Finance，自动拼接合规且具有代表性的指数交易时段真实 K 线。
+
+- **⚡ 每日自动增量更新 & 本地极速缓存 (Fast Local Caching)**
+  - 拥有智能的本地 JSON 数据文件双缓存机制，所有周期的行情文件自动在服务端离线沉淀。
+  - 引入**每日自动更新机制**（纽约时间每日 16:18 收盘后自动触发多周期全量增量拉取），无需频繁向第三方 API 发送请求，图表加载瞬间完成。
+
+- **🔍 日K线一键下钻日内5分钟走势 (Intraday 5m Drilldown)**
+  - 在日 K 图表模式下，鼠标轻点任意一根历史日 K 线，系统将自动向后台查询并动态组装**该交易日专属的5分钟超高精细分时走势图**。
+  - 分时走势中同样附带高精统计面板（日内开/收/最高/最低），支持完整的技术复盘。
+
+- **🎯 鼠标十字准线与实时刻度 (Professional Crosshair)**
+  - 完美复刻专业券商软件的交互体验，鼠标在图表上滑动时自动呈现十字虚线。
+  - 坐标轴左侧和底部实时同步高亮当前鼠标指向的**价格（Price）**与**精确交易时间标签（Time Badge）**。
+
+- **🏷️ 自动化价格行为模式标记 (Auto Price Action Labeling)**
+  - 服务端算法自动分析并高亮标出经典价格行为信号（如：Doji、十字星、吞没形态、锤头线、射击之星等）。
+  - 支持趋势结构点自动打标：最高点（HH）、次高点（LH）、最低点（LL）、次低点（HL）。
+  - 动态识别并描绘历史交易密集区的支撑与阻力带（Support & Resistance Zones）。
+
+- **🤖 价格行为AI教练 (AI Price Action Coach)**
+  - 通过 Gemini 大语言模型，可针对当前可见窗口的行情走势（或选定的特定价格行为）一键获取精准专业的分析报告。
+  - 提供进出场建议、结构突破解析与风控提醒，不含广告与多余推销。
+
+---
+
+## 🏗️ 系统架构 (Tech Stack)
+
+SPX Price Action Compass 采用优雅的现代全栈架构：
+
+- **Frontend:**
+  - **React 18** & **TypeScript** — 保证组件高度模块化与高类型安全。
+  - **Tailwind CSS** — 精致轻量、高对比度的深色极客风（Dark Slate Theme）视觉设计。
+  - **Custom Canvas & SVG Engine** — 弃用臃肿的第三方图表库，采用轻量级、高性能的纯 SVG 矢量图表引擎，带来极致平滑的拖拽（Drag & Pan）和缩放（Zoom）体验。
+
+- **Backend:**
+  - **Node.js** & **Express** — 处理图表的多周期行情数据分发与增量文件合并。
+  - **Yahoo Finance API Proxy** — 安全隐藏 API 请求并拦截超时，自动处理 1h-to-4h 等定制级 K 线聚合。
+  - **Cron-like Scheduler** — 自动化离线同步引擎，保证本地缓存行情的生命周期管理。
+
+---
+
+## 🚀 快速启动指南 (Getting Started)
+
+### 1. 环境准备
+确保您的运行环境已安装了 **Node.js (v18+)**。
+
+### 2. 安装依赖
+在项目根目录下，执行以下命令安装依赖：
+```bash
+npm install
+```
+
+### 3. 配置环境变量
+在项目根目录下创建一个 `.env` 文件，可参考如下内容进行配置：
+```env
+# 可选：配置您的 Gemini 密钥，用于激活 AI 价格教练功能
+GEMINI_API_KEY=your_gemini_api_key_here
+```
+
+### 4. 启动开发服务器
+```bash
+npm run dev
+```
+启动成功后，浏览器打开 `http://localhost:3000` 即可开始使用。
+
+### 5. 项目打包
+```bash
+npm run build
+```
+打包生成的高效静态文件和后端编译成果将一并输出到 `dist/` 目录中。
+
+---
+
+## 📜 开源协议 (License)
+
+本项目采用 [MIT License](LICENSE) 协议开源。任何人均可自由地克隆、修改、分发或用于商业复盘。

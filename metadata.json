@@ -1,0 +1,6 @@
+{
+  "name": "SPX Price Action Compass",
+  "description": "An interactive, full-stack 5-minute price action review tool for SPX, with auto-labeled patterns, trend analysis, support/resistance detection, and an AI Price Action Coach.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
