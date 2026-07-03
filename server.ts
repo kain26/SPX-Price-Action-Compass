@@ -212,12 +212,14 @@ app.get("/api/spx-data", async (req, res) => {
   const trend = detectTrend(filtered);
   const patterns = detectPatterns(filtered);
 
-  // S&R zones should ALWAYS be calculated from the past 21 trading days
+  // S&R zones are calculated from a timeframe-appropriate historical window.
+  // Lower timeframes (1m, 5m, 15m) use a 21-trading-day window to capture recent intraday structure.
+  // Higher timeframes (4h, 1d) use a longer-term window (250-500 candles / ~1-2 years) to capture major structural support/resistance.
   let zonesCandlesCount = 1638;
   if (timeframe === "1d") {
-    zonesCandlesCount = 21;
+    zonesCandlesCount = 250; // 1 year of daily K-lines
   } else if (timeframe === "4h") {
-    zonesCandlesCount = 42;
+    zonesCandlesCount = 500; // ~1 year of 4-hour K-lines
   } else if (timeframe === "15m") {
     zonesCandlesCount = 546;
   } else if (timeframe === "5m") {

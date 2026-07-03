@@ -16,6 +16,7 @@ interface PriceActionChartProps {
   // Controls for interactive zoom/scroll from parent if needed
   focusIndex?: number | null;
   onCandleClick?: (candle: Candle) => void;
+  timeframe?: string;
 }
 
 export default function PriceActionChart({
@@ -31,6 +32,7 @@ export default function PriceActionChart({
   showVolume,
   focusIndex = null,
   onCandleClick,
+  timeframe,
 }: PriceActionChartProps) {
   // Chart view state: indices of visible candles
   const totalCandles = candles.length;
@@ -100,12 +102,232 @@ export default function PriceActionChart({
   const volumeHeight = 60;
   const totalChartHeight = chartHeight + (showVolume ? volumeHeight : 0);
   const chartWidth = 720; // Will scale responsively inside parent SVG viewBox
+  const candleAreaWidth = chartWidth - 60; // 60px reserved for the left-side Y-axis column
 
   // Coordinate projection helper
   const getX = (indexInVisible: number) => {
-    const candleWidth = chartWidth / zoomLevel;
-    const val = indexInVisible * candleWidth + candleWidth / 2;
+    const candleWidth = candleAreaWidth / zoomLevel;
+    const val = 60 + indexInVisible * candleWidth + candleWidth / 2;
     return isNaN(val) || !isFinite(val) ? 0 : val;
+  };
+
+  // Helper to format/parse timestamp into Eastern Time (America/New_York) components
+  const getETComponents = (timeMs: number) => {
+    try {
+      const formatter = new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/New_York",
+        year: "numeric",
+        month: "numeric",
+        day: "numeric",
+        hour: "numeric",
+        minute: "numeric",
+        hour12: false
+      });
+      const parts = formatter.formatToParts(new Date(timeMs));
+      const partMap: Record<string, string> = {};
+      parts.forEach(p => {
+        partMap[p.type] = p.value;
+      });
+      return {
+        year: parseInt(partMap.year || "0", 10),
+        month: parseInt(partMap.month || "0", 10),
+        day: parseInt(partMap.day || "0", 10),
+        hour: parseInt(partMap.hour || "0", 10),
+        minute: parseInt(partMap.minute || "0", 10),
+      };
+    } catch (e) {
+      const d = new Date(timeMs);
+      return {
+        year: d.getFullYear(),
+        month: d.getMonth() + 1,
+        day: d.getDate(),
+        hour: d.getHours(),
+        minute: d.getMinutes(),
+      };
+    }
+  };
+
+  const getETDateString = (timeMs: number, format: "short" | "full" | "month-only") => {
+    try {
+      const d = new Date(timeMs);
+      if (format === "month-only") {
+        return new Intl.DateTimeFormat("zh-CN", {
+          timeZone: "America/New_York",
+          month: "short"
+        }).format(d);
+      }
+      if (format === "full") {
+        const formatted = new Intl.DateTimeFormat("zh-CN", {
+          timeZone: "America/New_York",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit"
+        }).format(d);
+        return formatted.replace(/\//g, "-");
+      }
+      const et = getETComponents(timeMs);
+      return `${et.month}/${et.day}`;
+    } catch (e) {
+      const d = new Date(timeMs);
+      if (format === "month-only") {
+        return d.toLocaleDateString("zh-CN", { month: "short" });
+      }
+      if (format === "full") {
+        return d.toLocaleDateString("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit" }).replace(/\//g, "-");
+      }
+      return `${d.getMonth() + 1}/${d.getDate()}`;
+    }
+  };
+
+  const getETFormattedString = (timeMs: number, showTime = !isDaily) => {
+    const et = getETComponents(timeMs);
+    const yearStr = et.year;
+    const monthStr = String(et.month).padStart(2, "0");
+    const dayStr = String(et.day).padStart(2, "0");
+    const datePart = `${yearStr}-${monthStr}-${dayStr}`;
+    if (!showTime) {
+      return datePart;
+    }
+    const hourStr = String(et.hour).padStart(2, "0");
+    const minStr = String(et.minute).padStart(2, "0");
+    return `${datePart} ${hourStr}:${minStr}`;
+  };
+
+  const isDaily = timeframe === "1d";
+
+  // Helper to generate beautifully aligned ticks on the X-axis
+  const getXAxisTicks = () => {
+    const ticks: { index: number; label: string; isStrong?: boolean }[] = [];
+    if (visibleCandles.length === 0) return ticks;
+
+    if (!isDaily) {
+      // Find candles on the exact hour in Eastern Time
+      const candidates: { index: number; et: ReturnType<typeof getETComponents> }[] = [];
+      visibleCandles.forEach((c, i) => {
+        const et = getETComponents(c.time);
+        if (et.minute === 0) {
+          candidates.push({ index: i, et });
+        }
+      });
+
+      // If too few hourly marks (e.g. zoomed in very close), add half-hours
+      if (candidates.length < 3) {
+        visibleCandles.forEach((c, i) => {
+          const et = getETComponents(c.time);
+          if (et.minute === 30) {
+            if (!candidates.some(cand => cand.index === i)) {
+              candidates.push({ index: i, et });
+            }
+          }
+        });
+        candidates.sort((a, b) => a.index - b.index);
+      }
+
+      // If still too few, fall back to simple spacing
+      if (candidates.length < 3) {
+        const step = Math.max(1, Math.floor(visibleCandles.length / 5));
+        for (let i = 0; i < visibleCandles.length; i += step) {
+          candidates.push({ index: i, et: getETComponents(visibleCandles[i].time) });
+        }
+      }
+
+      // Filter candidates if there are too many (limit to max 7 ticks for cleanliness)
+      let filtered = candidates;
+      if (candidates.length > 7) {
+        const skip = Math.ceil(candidates.length / 5);
+        filtered = candidates.filter((_, idx) => idx % skip === 0);
+      }
+
+      filtered.forEach(item => {
+        const hourStr = String(item.et.hour).padStart(2, "0");
+        const minStr = String(item.et.minute).padStart(2, "0");
+        // Check if market opens to show full date context (9:30 AM Eastern Time)
+        const isMarketOpen = item.et.hour === 9 && item.et.minute === 30;
+        const label = isMarketOpen
+          ? `${item.et.month}/${item.et.day} ${hourStr}:${minStr}`
+          : `${hourStr}:${minStr}`;
+
+        ticks.push({
+          index: item.index,
+          label,
+          isStrong: isMarketOpen
+        });
+      });
+    } else {
+      // Daily (1d) timeframe - DO NOT show time!
+      const candidates: { index: number; et: ReturnType<typeof getETComponents>; label: string }[] = [];
+      visibleCandles.forEach((c, i) => {
+        const et = getETComponents(c.time);
+        const prevC = visibleCandles[i - 1];
+        const prevEt = prevC ? getETComponents(prevC.time) : null;
+        
+        if (prevEt && et.month !== prevEt.month) {
+          candidates.push({
+            index: i,
+            et,
+            label: getETDateString(c.time, "month-only")
+          });
+        } else if (i === 0 || i === visibleCandles.length - 1) {
+          candidates.push({
+            index: i,
+            et,
+            label: `${et.month}/${et.day}`
+          });
+        } else if (visibleCandles.length < 40) {
+          // Zooms in, show Mondays
+          // To calculate if it is Monday in Eastern Time:
+          const etDate = new Date(new Intl.DateTimeFormat("en-US", {
+            timeZone: "America/New_York",
+            year: "numeric",
+            month: "numeric",
+            day: "numeric"
+          }).format(new Date(c.time)));
+          if (etDate.getDay() === 1) {
+            candidates.push({
+              index: i,
+              et,
+              label: `${et.month}/${et.day}`
+            });
+          }
+        }
+      });
+
+      if (candidates.length < 3) {
+        const step = Math.max(1, Math.floor(visibleCandles.length / 5));
+        for (let i = 0; i < visibleCandles.length; i += step) {
+          const et = getETComponents(visibleCandles[i].time);
+          candidates.push({
+            index: i,
+            et,
+            label: `${et.month}/${et.day}`
+          });
+        }
+      }
+
+      const uniqueIndices = new Set<number>();
+      const uniqueCandidates = candidates.filter(item => {
+        if (uniqueIndices.has(item.index)) return false;
+        uniqueIndices.add(item.index);
+        return true;
+      });
+      uniqueCandidates.sort((a, b) => a.index - b.index);
+
+      let filtered = uniqueCandidates;
+      if (uniqueCandidates.length > 7) {
+        const skip = Math.ceil(uniqueCandidates.length / 5);
+        filtered = uniqueCandidates.filter((_, idx) => idx % skip === 0);
+      }
+
+      filtered.forEach(item => {
+        ticks.push({
+          index: item.index,
+          label: item.label,
+          isStrong: item.label.includes("月")
+        });
+      });
+    }
+
+    return ticks;
   };
 
   const getY = (price: number) => {
@@ -136,52 +358,72 @@ export default function PriceActionChart({
       const clientX = e.clientX - rect.left;
       const clientY = e.clientY - rect.top;
       
-      // Map client position to SVG viewBox coordinates (width = 720)
+      // Map client position to SVG viewBox coordinates (width = 720, height = totalChartHeight + 20)
       const svgX = (clientX / rect.width) * chartWidth;
-      const svgY = (clientY / rect.height) * totalChartHeight;
+      const svgY = (clientY / rect.height) * (totalChartHeight + 20);
       
-      const clampedX = Math.max(0, Math.min(chartWidth, svgX));
-      const clampedY = Math.max(0, Math.min(totalChartHeight, svgY));
-      
-      const candleWidth = chartWidth / zoomLevel;
-      const relativeIndex = Math.floor(clampedX / candleWidth);
-      const actualIndexInVisible = Math.max(0, Math.min(visibleCandles.length - 1, relativeIndex));
-      const candle = visibleCandles[actualIndexInVisible];
-      
-      if (candle) {
-        const actualIndex = startIndex + actualIndexInVisible;
-        setHoveredCandle({ candle, index: actualIndex });
+      // Only track candles & show crosshair if mouse is inside the active candle area (60 to 720)
+      if (svgX >= 60 && svgX <= chartWidth && svgY >= 0 && svgY <= totalChartHeight) {
+        const clampedX = Math.max(60, Math.min(chartWidth, svgX));
+        const clampedY = Math.max(0, Math.min(totalChartHeight, svgY));
         
-        // Calculate price corresponding to clampedY
-        const priceY = minPrice + priceRange * (chartHeight - 20 - clampedY) / (chartHeight - 40);
+        const candleWidth = candleAreaWidth / zoomLevel;
+        const relativeIndex = Math.floor((clampedX - 60) / candleWidth);
+        const actualIndexInVisible = Math.max(0, Math.min(visibleCandles.length - 1, relativeIndex));
+        const candle = visibleCandles[actualIndexInVisible];
         
-        // Format date and time
-        const d = new Date(candle.time);
-        let dateStr = "";
-        const daysOfWeek = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
-        const datePart = d.toLocaleDateString("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit" }).replace(/\//g, "-");
-        
-        // If daily view or timeframe has 00:00:00 (daily), omit hours/mins
-        if (zoomLevel > 300 || (d.getHours() === 0 && d.getMinutes() === 0)) {
-          dateStr = `${datePart} ${daysOfWeek[d.getDay()]}`;
-        } else {
-          const timePart = d.toLocaleTimeString("zh-CN", { hour12: false, hour: "2-digit", minute: "2-digit" });
-          dateStr = `${datePart} ${timePart}`;
+        if (candle) {
+          const actualIndex = startIndex + actualIndexInVisible;
+          setHoveredCandle({ candle, index: actualIndex });
+          
+          // Calculate price corresponding to clampedY
+          const priceY = minPrice + priceRange * (chartHeight - 20 - clampedY) / (chartHeight - 40);
+          
+          // Format date and time in Eastern Time
+          const et = getETComponents(candle.time);
+          const daysOfWeek = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
+          
+          // Get the correct day of the week in Eastern Time
+          const etDate = new Date(new Intl.DateTimeFormat("en-US", {
+            timeZone: "America/New_York",
+            year: "numeric",
+            month: "numeric",
+            day: "numeric"
+          }).format(new Date(candle.time)));
+          const dayOfWeekStr = daysOfWeek[etDate.getDay()];
+
+          const yearStr = et.year;
+          const monthStr = String(et.month).padStart(2, "0");
+          const dayStr = String(et.day).padStart(2, "0");
+          const datePart = `${yearStr}-${monthStr}-${dayStr}`;
+
+          let dateStr = "";
+          if (isDaily) {
+            dateStr = `${datePart} ${dayOfWeekStr}`;
+          } else {
+            const hourStr = String(et.hour).padStart(2, "0");
+            const minStr = String(et.minute).padStart(2, "0");
+            dateStr = `${datePart} ${hourStr}:${minStr} ${dayOfWeekStr}`;
+          }
+          
+          setCrosshairPos({
+            x: getX(actualIndexInVisible),
+            y: clampedY,
+            price: priceY,
+            dateStr,
+          });
         }
-        
-        setCrosshairPos({
-          x: getX(actualIndexInVisible),
-          y: clampedY,
-          price: priceY,
-          dateStr,
-        });
+      } else {
+        setCrosshairPos(null);
+        setHoveredCandle(null);
       }
     }
 
     if (!isDragging) return;
 
     const deltaX = e.clientX - dragStart;
-    const candleWidth = containerRef.current ? containerRef.current.clientWidth / zoomLevel : 8;
+    const activeWidth = containerRef.current ? containerRef.current.clientWidth * (candleAreaWidth / chartWidth) : 660;
+    const candleWidth = activeWidth / zoomLevel;
     const candlesMoved = Math.round(deltaX / candleWidth);
 
     if (Math.abs(candlesMoved) >= 1) {
@@ -249,15 +491,15 @@ export default function PriceActionChart({
         <g key={zone.id} className="transition-all duration-300">
           {/* Main Translucent Zone Band */}
           <rect
-            x={0}
+            x={60}
             y={Math.min(minBoundY, maxBoundY)}
-            width={chartWidth}
+            width={candleAreaWidth}
             height={bandHeight}
             className={`${colorClass} stroke-1`}
           />
           {/* Level Dashed Line */}
           <line
-            x1={0}
+            x1={60}
             y1={y}
             x2={chartWidth}
             y2={y}
@@ -492,51 +734,125 @@ export default function PriceActionChart({
         className={`relative w-full select-none ${isDragging ? "cursor-grabbing" : "cursor-crosshair"}`}
       >
         <svg
-          viewBox={`0 0 ${chartWidth} ${totalChartHeight}`}
+          viewBox={`0 0 ${chartWidth} ${totalChartHeight + 20}`}
           width="100%"
           height="100%"
           className="overflow-visible"
         >
-          {/* Grid lines */}
-          <g className="stroke-[#16181d] stroke-[0.5]">
-            {/* Horizontal grids */}
+          {/* Main Chart Area Background (60 to chartWidth) */}
+          <rect
+            x={60}
+            y={0}
+            width={candleAreaWidth}
+            height={totalChartHeight}
+            fill="#090a0d"
+          />
+
+          {/* Left Y-Axis Column Background */}
+          <rect
+            x={0}
+            y={0}
+            width={60}
+            height={totalChartHeight + 20}
+            fill="#050608"
+          />
+
+          {/* Bottom X-Axis Row Background */}
+          <rect
+            x={60}
+            y={totalChartHeight}
+            width={candleAreaWidth}
+            height={20}
+            fill="#050608"
+          />
+
+          {/* Column/Row Border Lines */}
+          <line
+            x1={60}
+            y1={0}
+            x2={60}
+            y2={totalChartHeight + 20}
+            className="stroke-[#1e222d] stroke-[1]"
+          />
+          <line
+            x1={60}
+            y1={totalChartHeight}
+            x2={chartWidth}
+            y2={totalChartHeight}
+            className="stroke-[#1e222d] stroke-[1]"
+          />
+
+          {/* Grid lines and Ticks */}
+          <g>
+            {/* Horizontal Grid Lines (Price) */}
             {Array.from({ length: 6 }).map((_, i) => {
               const p = minPrice + (priceRange / 5) * i;
               const y = getY(p);
               return (
                 <g key={`grid-h-${i}`}>
-                  <line x1={0} y1={y} x2={chartWidth} y2={y} strokeDasharray="3,3" />
+                  {/* Grid Line */}
+                  <line 
+                    x1={60} 
+                    y1={y} 
+                    x2={chartWidth} 
+                    y2={y} 
+                    className="stroke-[#1e222d]/60 stroke-[0.8]" 
+                    strokeDasharray="2,2" 
+                  />
+                  {/* Tick Mark in Left Y-Axis Area */}
+                  <line 
+                    x1={56} 
+                    y1={y} 
+                    x2={60} 
+                    y2={y} 
+                    className="stroke-slate-500 stroke-[1]" 
+                  />
+                  {/* Clean, legible text in the left sidebar */}
                   <text
-                    x={5}
-                    y={y + 11}
-                    className="fill-slate-600 font-mono text-[9px]"
+                    x={52}
+                    y={y + 3}
+                    textAnchor="end"
+                    className="fill-slate-300 font-mono text-[9px] font-semibold"
                   >
-                    {Math.round(p)}
+                    {p.toFixed(1)}
                   </text>
                 </g>
               );
             })}
 
-            {/* Vertical grid lines (Trading day breaks) */}
-            {visibleCandles.map((c, i) => {
-              const date = new Date(c.time);
-              const isMarketOpen = date.getHours() === 9 && date.getMinutes() === 30;
-              if (isMarketOpen) {
-                const x = getX(i);
-                return (
-                  <g key={`grid-v-${i}`}>
-                    <line x1={x} y1={0} x2={x} y2={totalChartHeight} className="stroke-[#1e222d] stroke-[0.8] stroke-dasharray-[2,2]" />
-                    <text
-                      x={x + 3}
-                      y={12}
-                      className="fill-slate-500 font-sans text-[8px]"
-                    >
-                      {date.toLocaleDateString([], { month: "short", day: "numeric" })}
-                    </text>
-                  </g>
-                );
-              }
-              return null;
+            {/* Vertical Grid Lines & X-Axis labels (Time) */}
+            {getXAxisTicks().map((tick, i) => {
+              const x = getX(tick.index);
+              if (x < 60 || x > chartWidth) return null; // Keep inside active area
+              return (
+                <g key={`grid-v-${i}`}>
+                  {/* Vertical Grid Line */}
+                  <line 
+                    x1={x} 
+                    y1={0} 
+                    x2={x} 
+                    y2={totalChartHeight} 
+                    className={tick.isStrong ? "stroke-slate-700/80 stroke-[0.8]" : "stroke-[#1e222d]/40 stroke-[0.8] stroke-dasharray-[2,2]"} 
+                  />
+                  {/* Tick Mark on X-Axis Border */}
+                  <line 
+                    x1={x} 
+                    y1={totalChartHeight} 
+                    x2={x} 
+                    y2={totalChartHeight + 4} 
+                    className="stroke-slate-500 stroke-[1]" 
+                  />
+                  {/* legilble time text in X-axis row */}
+                  <text
+                    x={x}
+                    y={totalChartHeight + 14}
+                    textAnchor="middle"
+                    className={`font-mono text-[9px] ${tick.isStrong ? "fill-slate-200 font-bold" : "fill-slate-400"}`}
+                  >
+                    {tick.label}
+                  </text>
+                </g>
+              );
             })}
           </g>
 
@@ -547,6 +863,7 @@ export default function PriceActionChart({
           <g>
             {visibleCandles.map((c, i) => {
               const x = getX(i);
+              if (x < 60 || x > chartWidth) return null;
               const yOpen = getY(c.open);
               const yClose = getY(c.close);
               const yHigh = getY(c.high);
@@ -555,7 +872,7 @@ export default function PriceActionChart({
               const isBullish = c.close >= c.open;
               const strokeColor = isBullish ? "stroke-[#00c805]" : "stroke-[#ff3b30]";
               const fillColor = isBullish ? "fill-[#00c805]" : "fill-[#ff3b30]";
-              const candleWidth = Math.max(1.5, (chartWidth / zoomLevel) * 0.75);
+              const candleWidth = Math.max(1.5, (candleAreaWidth / zoomLevel) * 0.75);
 
               return (
                 <g 
@@ -581,11 +898,12 @@ export default function PriceActionChart({
           {/* Volume Chart */}
           {showVolume && (
             <g>
-              <line x1={0} y1={chartHeight} x2={chartWidth} y2={chartHeight} className="stroke-[#1e222d] stroke-[1]" />
+              <line x1={60} y1={chartHeight} x2={chartWidth} y2={chartHeight} className="stroke-[#1e222d] stroke-[1]" />
               {visibleCandles.map((c, i) => {
                 const x = getX(i);
+                if (x < 60 || x > chartWidth) return null;
                 const yVol = getVolY(c.volume);
-                const candleWidth = Math.max(1.5, (chartWidth / zoomLevel) * 0.7);
+                const candleWidth = Math.max(1.5, (candleAreaWidth / zoomLevel) * 0.7);
                 const isBullish = c.close >= c.open;
                 const fillClass = isBullish ? "fill-[#00c805]/20" : "fill-[#ff3b30]/20";
 
@@ -612,7 +930,7 @@ export default function PriceActionChart({
           {/* Mouse Crosshair dashed lines with price and date/time badges */}
           {crosshairPos && !isDragging && (
             <g className="pointer-events-none">
-              {/* Vertical line */}
+              {/* Vertical line restricted to active candle area */}
               <line
                 x1={crosshairPos.x}
                 y1={0}
@@ -621,26 +939,26 @@ export default function PriceActionChart({
                 className="stroke-slate-400 stroke-[0.8]"
                 strokeDasharray="3,3"
               />
-              {/* Horizontal line */}
+              {/* Horizontal line restricted to active candle area */}
               <line
-                x1={0}
+                x1={60}
                 y1={crosshairPos.y}
                 x2={chartWidth}
                 y2={crosshairPos.y}
                 className="stroke-slate-400 stroke-[0.8]"
                 strokeDasharray="3,3"
               />
-              {/* Price badge (left axis) */}
-              <g transform={`translate(2, ${Math.max(2, Math.min(totalChartHeight - 18, crosshairPos.y - 8))})`}>
-                <rect x={0} y={0} width={50} height={16} rx={3} fill="#000000" stroke="#1e222d" strokeWidth={1} />
-                <text x={25} y={11} textAnchor="middle" className="fill-white font-mono text-[9px] font-bold">
-                  {crosshairPos.price.toFixed(2)}
+              {/* Price badge (on the left Y-axis, 0 to 60px) */}
+              <g transform={`translate(2, ${Math.max(2, Math.min(totalChartHeight - 16, crosshairPos.y - 8))})`}>
+                <rect x={0} y={0} width={56} height={16} rx={3} fill="#00c805" stroke="#ffffff" strokeWidth={0.8} />
+                <text x={28} y={11} textAnchor="middle" className="fill-slate-950 font-mono text-[9px] font-extrabold">
+                  {crosshairPos.price.toFixed(1)}
                 </text>
               </g>
-              {/* Date/Time badge (bottom axis) */}
-              <g transform={`translate(${Math.max(50, Math.min(chartWidth - 50, crosshairPos.x)) - 50}, ${totalChartHeight - 18})`}>
-                <rect x={0} y={0} width={100} height={16} rx={3} fill="#000000" stroke="#1e222d" strokeWidth={1} />
-                <text x={50} y={11} textAnchor="middle" className="fill-slate-200 font-sans text-[8px] font-bold">
+              {/* Date/Time badge (bottom X-axis, centered on candle inside 60 to 720) */}
+              <g transform={`translate(${Math.max(60 + 50, Math.min(chartWidth - 50, crosshairPos.x)) - 50}, ${totalChartHeight + 1})`}>
+                <rect x={0} y={0} width={100} height={16} rx={3} fill="#2563eb" stroke="#ffffff" strokeWidth={0.8} />
+                <text x={50} y={11} textAnchor="middle" className="fill-white font-sans text-[8px] font-bold">
                   {crosshairPos.dateStr}
                 </text>
               </g>
@@ -659,7 +977,7 @@ export default function PriceActionChart({
       {/* Synchronized timeline scrollbar/minimap */}
       <div className="px-5 py-2 bg-[#000000] border-t border-[#1e222d] flex items-center justify-between text-[10px] font-mono text-slate-400">
         <span>
-          范围: {new Date(visibleCandles[0]?.time).toLocaleString()} ~ {new Date(visibleCandles[visibleCandles.length - 1]?.time).toLocaleString()}
+          范围: {visibleCandles.length > 0 ? getETFormattedString(visibleCandles[0].time) : ""} ~ {visibleCandles.length > 0 ? getETFormattedString(visibleCandles[visibleCandles.length - 1].time) : ""}
         </span>
         <div className="flex items-center gap-2">
           <span>{totalCandles} 根数据点</span>

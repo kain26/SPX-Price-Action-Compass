@@ -430,6 +430,7 @@ export default function App() {
                     showVolume={showVolume}
                     focusIndex={focusIndex}
                     onCandleClick={handleCandleClick}
+                    timeframe={timeframe}
                   />
 
                   {timeframe === "1d" && (
@@ -501,6 +502,7 @@ export default function App() {
                             showZones={showZones}
                             showTrends={showTrends}
                             showVolume={showVolume}
+                            timeframe="5m"
                           />
                         </div>
                       )}
