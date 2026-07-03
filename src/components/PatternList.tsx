@@ -11,8 +11,10 @@ import {
   Search,
   Filter,
   Check,
-  Info
+  Info,
+  ChevronRight
 } from "lucide-react";
+import DiagnosticModal from "./DiagnosticModal.tsx";
 
 const PATTERN_CATEGORIES = [
   { val: "ALL", label: "全部形态" },
@@ -66,13 +68,6 @@ const getPatternDisplayLabel = (type: string, name: string): string => {
   }
 };
 
-const getStars = (confidence: number): string => {
-  if (confidence >= 0.85) return "★★★★★";
-  if (confidence >= 0.75) return "★★★★☆";
-  if (confidence >= 0.60) return "★★★☆☆";
-  return "★★☆☆☆";
-};
-
 export default function PatternList({
   patterns,
   allPatterns,
@@ -91,6 +86,7 @@ export default function PatternList({
 }: PatternListProps) {
   
   const [showAllBehaviors, setShowAllBehaviors] = useState(false);
+  const [showLocalDiag, setShowLocalDiag] = useState(false);
 
   // Sort and select top patterns based on confidence for "Today's Lessons"
   const topObservations = [...patterns]
@@ -187,56 +183,62 @@ export default function PatternList({
         </div>
 
         {activeFocus ? (
-          <div className="flex flex-col gap-4 relative group/insight">
+          <div className="flex flex-col gap-3 relative">
             
             {/* Metadata Badges */}
-            <div className="flex items-center justify-between bg-black px-3 py-2.5 rounded-none border border-neutral-800">
+            <div className="flex items-center justify-between bg-neutral-950 px-3 py-2 border border-neutral-900 rounded-lg">
               <div className="flex flex-col">
-                <span className="text-[9px] text-slate-400 uppercase tracking-wider font-mono">
+                <span className="text-[8px] text-slate-500 uppercase tracking-wider font-mono">
                   信号置信度
                 </span>
-                <span className="text-xs font-bold text-[#eab308] tracking-widest mt-1">
-                  {getStars(activeFocus.confidence)}
+                <span className="text-xs font-mono font-bold text-yellow-500 mt-0.5">
+                  {Math.round(activeFocus.confidence * 100)}%
                 </span>
               </div>
               <div className="text-right">
-                <span className="text-[9px] text-slate-400 uppercase tracking-wider font-mono">
+                <span className="text-[8px] text-slate-500 uppercase tracking-wider font-mono">
                   关键临界价
                 </span>
-                <span className="text-xs font-mono font-bold text-white block mt-1">
+                <span className="text-xs font-mono font-bold text-white block mt-0.5">
                   ${activeFocus.price}
                 </span>
               </div>
             </div>
 
             {/* Structure Description */}
-            <div className="relative">
-              <div className="text-[9px] text-white font-bold font-mono uppercase tracking-wider flex items-center gap-1.5">
-                <span>STRUCTURE DETECTED</span>
-                <span className="px-1.5 py-0.5 bg-neutral-900 rounded-none border border-neutral-700 text-[8px] text-white font-mono">
+            <div className="border border-neutral-900 bg-neutral-950/30 p-3 rounded-lg flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <span className="px-1.5 py-0.5 bg-neutral-900 border border-neutral-800 text-[8px] text-slate-400 font-mono">
                   {activeFocus.type}
+                </span>
+                <span className="text-[8px] text-slate-500 font-mono">
+                  ({activeFocus.candleIndices.length}根K线)
                 </span>
               </div>
               
-              <h3 className="text-xs font-bold text-white mt-1.5 flex items-center justify-between font-mono">
-                <span>{getPatternDisplayLabel(activeFocus.type, activeFocus.name)}</span>
-                <span className="text-[9px] text-slate-400 font-mono font-normal">
-                  ({activeFocus.candleIndices.length}根K线)
-                </span>
+              <h3 className="text-xs font-bold text-white font-mono leading-tight">
+                {getPatternDisplayLabel(activeFocus.type, activeFocus.name)}
               </h3>
 
-              {/* Hover info badge */}
-              <div className="mt-2 text-[9px] text-slate-400 font-sans italic flex items-center gap-1 cursor-help">
-                <Info className="w-3 h-3 text-white animate-pulse" />
-                <span>鼠标悬停此处可查看机构博弈机理分析</span>
-              </div>
-
-              {/* Hover reveal description - Clean popover overlay */}
-              <div className="absolute left-0 right-0 top-full mt-2 p-3 bg-black border border-neutral-600 text-[11px] text-slate-200 leading-relaxed rounded-none shadow-2xl z-50 pointer-events-none opacity-0 group-hover/insight:opacity-100 transition-opacity duration-200">
-                <p className="font-semibold text-white mb-1 font-mono">价格学派博弈原理：</p>
-                {activeFocus.description}
-              </div>
+              {/* Click trigger report button */}
+              <button
+                onClick={() => setShowLocalDiag(true)}
+                className="mt-1 w-full py-2 px-3 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 hover:border-neutral-700 text-slate-200 hover:text-white rounded-lg text-[10px] font-bold font-mono transition-all cursor-pointer flex items-center justify-between"
+              >
+                <span className="flex items-center gap-1">
+                  <Info className="w-3.5 h-3.5 text-indigo-400 animate-pulse" />
+                  点击载入多空博弈高级报告
+                </span>
+                <ChevronRight className="w-3.5 h-3.5 text-slate-500" />
+              </button>
             </div>
+
+            {showLocalDiag && (
+              <DiagnosticModal
+                pattern={activeFocus}
+                onClose={() => setShowLocalDiag(false)}
+              />
+            )}
 
           </div>
         ) : (
@@ -260,7 +262,7 @@ export default function PatternList({
           <button
             onClick={onTriggerSync}
             disabled={syncing}
-            className="px-2.5 py-1 rounded-none bg-black hover:bg-neutral-900 active:scale-[0.98] text-white font-bold disabled:opacity-50 transition-all flex items-center gap-1 text-[9px] border border-neutral-700 cursor-pointer"
+            className="px-3 py-2 sm:py-1 rounded-none bg-black hover:bg-neutral-900 active:scale-[0.98] text-white font-bold disabled:opacity-50 transition-all flex items-center justify-center gap-1 text-[10px] sm:text-[9px] border border-neutral-700 cursor-pointer min-h-[44px] sm:min-h-0"
             title="拉取最新 SPX 真实K线"
           >
             <RefreshCw className={`w-2.5 h-2.5 ${syncing ? "animate-spin" : ""}`} />
@@ -308,9 +310,6 @@ export default function PatternList({
                   >
                     <div className="flex-1 min-w-0 text-left">
                       <div className="flex items-center gap-1.5 justify-start">
-                        <span className="text-[9px] text-slate-400 font-mono">
-                          {getStars(p.confidence)}
-                        </span>
                         <span className="font-bold text-white truncate text-left font-mono">
                           {getPatternDisplayLabel(p.type, p.name)}
                         </span>
@@ -331,7 +330,7 @@ export default function PatternList({
             {patterns.length > 4 && (
               <button
                 onClick={() => setShowAllBehaviors(!showAllBehaviors)}
-                className="w-full py-2 border border-dashed border-neutral-800 hover:border-white text-slate-400 hover:text-white text-[10px] font-mono rounded-none transition-all flex items-center justify-center gap-1 cursor-pointer mt-1"
+                className="w-full py-2.5 sm:py-2 border border-dashed border-neutral-800 hover:border-white text-slate-400 hover:text-white text-[10px] font-mono rounded-none transition-all flex items-center justify-center gap-1 cursor-pointer mt-1 min-h-[44px] sm:min-h-0"
               >
                 {showAllBehaviors ? (
                   <>

@@ -85,9 +85,14 @@
 
 ---
 
-## 🏗️ 系统架构 (Tech Stack)
+## 🏗️ 系统架构 & 部署地址 (Architecture & Live Demo)
 
 SPX Price Action Compass 采用优雅的现代全栈架构：
+
+- **🌐 在线演示地址**: [https://spx-price-action-compass-773950940183.asia-south1.run.app/](https://spx-price-action-compass-773950940183.asia-south1.run.app/)
+- **📑 核心项目架构说明书**: 详情请参阅项目根目录下的 [ARCHITECTURE.md](ARCHITECTURE.md) 指引，涵盖了底层 SVG 矢量绘图引擎、一维凝聚层级聚类算法、以及全离线价格行为探测指标判定逻辑。
+
+### 技术选型 (Tech Stack)
 
 - **Frontend:**
   - **React 18** & **TypeScript** — 保证组件高度模块化与高类型安全。

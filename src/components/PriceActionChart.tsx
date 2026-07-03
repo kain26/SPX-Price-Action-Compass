@@ -86,6 +86,7 @@ export default function PriceActionChart({
   // Initialize view: scroll to the very end but leave a beautiful blank padding on the right
   useEffect(() => {
     if (totalCandles > 0) {
+      const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
       if (timeframe === "15m") {
         let targetStart = -1;
         let targetEnd = -1;
@@ -100,16 +101,17 @@ export default function PriceActionChart({
         }
         if (targetStart !== -1 && targetEnd !== -1 && targetEnd >= targetStart) {
           const computedZoom = targetEnd - targetStart + 1;
-          setZoomLevel(computedZoom);
-          setStartIndex(targetStart);
+          const finalZoom = isMobile ? Math.min(computedZoom, 45) : computedZoom;
+          setZoomLevel(finalZoom);
+          setStartIndex(isMobile ? Math.max(targetStart, targetEnd - finalZoom + 1) : targetStart);
           return;
         }
       }
 
       // Default zoom sizing
-      let defaultZoom = Math.min(totalCandles, 100);
+      let defaultZoom = isMobile ? Math.min(totalCandles, 45) : Math.min(totalCandles, 100);
       if (timeframe === "4h") {
-        defaultZoom = Math.min(totalCandles, 60);
+        defaultZoom = isMobile ? Math.min(totalCandles, 25) : Math.min(totalCandles, 60);
       }
       
       setZoomLevel(defaultZoom);
@@ -415,6 +417,13 @@ export default function PriceActionChart({
     setDragStart(e.clientX);
   };
 
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length > 0) {
+      setIsDragging(true);
+      setDragStart(e.touches[0].clientX);
+    }
+  };
+
   const handleMouseMove = (e: React.MouseEvent) => {
     // Tooltip/hover candle & crosshair detection
     if (containerRef.current && totalCandles > 0) {
@@ -496,7 +505,88 @@ export default function PriceActionChart({
     }
   };
 
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length === 0) return;
+    
+    const clientX = e.touches[0].clientX;
+    const clientY = e.touches[0].clientY;
+
+    if (containerRef.current && totalCandles > 0) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const relativeX = clientX - rect.left;
+      const relativeY = clientY - rect.top;
+      
+      const svgX = (relativeX / rect.width) * chartWidth;
+      const svgY = (relativeY / rect.height) * (totalChartHeight + 20);
+      
+      if (svgX >= 60 && svgX <= chartWidth && svgY >= 0 && svgY <= totalChartHeight) {
+        const clampedX = Math.max(60, Math.min(chartWidth, svgX));
+        const clampedY = Math.max(0, Math.min(totalChartHeight, svgY));
+        
+        const candleWidth = candleAreaWidth / zoomLevel;
+        const relativeIndex = Math.floor((clampedX - 60) / candleWidth);
+        const actualIndexInVisible = Math.max(0, Math.min(visibleCandles.length - 1, relativeIndex));
+        const candle = visibleCandles[actualIndexInVisible];
+        
+        if (candle) {
+          const actualIndex = startIndex + actualIndexInVisible;
+          setHoveredCandle({ candle, index: actualIndex });
+          
+          const priceY = minPrice + priceRange * (chartHeight - 20 - clampedY) / (chartHeight - 40);
+          
+          const et = getETComponents(candle.time);
+          const daysOfWeek = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
+          
+          const etDate = new Date(new Intl.DateTimeFormat("en-US", {
+            timeZone: "America/New_York",
+            year: "numeric",
+            month: "numeric",
+            day: "numeric"
+          }).format(new Date(candle.time)));
+          const dayOfWeekStr = daysOfWeek[etDate.getDay()];
+
+          const yearStr = et.year;
+          const monthStr = String(et.month).padStart(2, "0");
+          const dayStr = String(et.day).padStart(2, "0");
+          const datePart = `${yearStr}-${monthStr}-${dayStr}`;
+
+          let dateStr = "";
+          if (isDaily) {
+            dateStr = `${datePart} ${dayOfWeekStr}`;
+          } else {
+            const hourStr = String(et.hour).padStart(2, "0");
+            const minStr = String(et.minute).padStart(2, "0");
+            dateStr = `${datePart} ${hourStr}:${minStr} ${dayOfWeekStr}`;
+          }
+          
+          setCrosshairPos({
+            x: getX(actualIndexInVisible),
+            y: clampedY,
+            price: priceY,
+            dateStr,
+          });
+        }
+      }
+    }
+
+    if (!isDragging) return;
+
+    const deltaX = clientX - dragStart;
+    const activeWidth = containerRef.current ? containerRef.current.clientWidth * (candleAreaWidth / chartWidth) : 660;
+    const candleWidth = activeWidth / zoomLevel;
+    const candlesMoved = Math.round(deltaX / candleWidth);
+
+    if (Math.abs(candlesMoved) >= 1) {
+      setStartIndex(prev => Math.max(0, Math.min(maxStartIndex, prev - candlesMoved)));
+      setDragStart(clientX);
+    }
+  };
+
   const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleTouchEnd = () => {
     setIsDragging(false);
   };
 
@@ -872,69 +962,60 @@ export default function PriceActionChart({
   return (
     <div className="flex flex-col bg-[#0c0d10] border border-[#1e222d] rounded-2xl overflow-hidden shadow-2xl">
       {/* Chart Control Toolbar */}
-      <div className="flex flex-wrap items-center justify-between px-5 py-3 border-b border-[#1e222d] bg-[#000000] gap-3">
-        <div className="flex items-center gap-3">
-          <span className="flex h-2 w-2 rounded-full bg-[#00c805]"></span>
-          <div className="flex flex-col">
-            <h3 className="text-xs font-semibold text-slate-100 flex items-center gap-2">
-              S&P 500 Index (SPX) <span className="text-[9px] bg-neutral-900 px-1.5 py-0.5 rounded text-slate-400 font-mono">{getDisplayTimeframe()}</span>
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between px-4 sm:px-5 py-2.5 sm:py-3 border-b border-[#1e222d] bg-[#000000] gap-2">
+        <div className="flex items-center justify-between sm:justify-start w-full sm:w-auto gap-3">
+          {/* S&P 500 Index Title / SPX 5m */}
+          <div className="flex items-center gap-2">
+            <span className="flex h-1.5 w-1.5 rounded-full bg-[#00c805] animate-pulse"></span>
+            <h3 className="text-xs font-semibold text-slate-100 font-mono">
+              {/* Desktop version */}
+              <span className="hidden sm:inline">
+                S&P 500 Index (SPX) <span className="text-[9px] bg-neutral-900 px-1.5 py-0.5 rounded text-slate-400 font-mono ml-1">{getDisplayTimeframe()}</span>
+              </span>
+              {/* Mobile version - centered or simple */}
+              <span className="inline sm:hidden text-xs font-black tracking-widest text-white uppercase">
+                SPX {timeframe ? timeframe.toLowerCase() : '5m'}
+              </span>
             </h3>
-            {hoveredCandle ? (
-              <p className="text-[10px] font-mono text-slate-400 flex gap-2.5 mt-0.5">
-                <span>时间: <b className="text-slate-200">{new Date(hoveredCandle.candle.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</b></span>
-                <span>O: <b className="text-[#00c805]">{hoveredCandle.candle.open}</b></span>
-                <span>H: <b className="text-[#00c805]">{hoveredCandle.candle.high}</b></span>
-                <span>L: <b className="text-[#ff3b30]">{hoveredCandle.candle.low}</b></span>
-                <span>C: <b className={hoveredCandle.candle.close >= hoveredCandle.candle.open ? "text-[#00c805]" : "text-[#ff3b30]"}>{hoveredCandle.candle.close}</b></span>
-                {hoveredCandle.candle.isReal ? (
-                  <span className="text-[9px] bg-neutral-900 text-slate-300 px-1 rounded font-sans">REAL</span>
-                ) : (
-                  <span className="text-[9px] bg-neutral-900 text-slate-400 px-1 rounded font-sans">SIM</span>
-                )}
-              </p>
-            ) : (
-              <p className="text-[10px] text-slate-500 mt-0.5">鼠标悬停 K 线或按住鼠标左右拖拽平移</p>
-            )}
+          </div>
+
+          {/* Clean scroll controls - on mobile keep them micro and on the right side of the header */}
+          <div className="flex items-center gap-1 bg-[#000000] p-0.5 rounded-lg border border-[#1e222d]">
+            <button
+              onClick={handleScrollLeft}
+              className="p-1 rounded text-slate-400 hover:text-white transition-colors cursor-pointer"
+              title="向左平移"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <span className="text-[8px] font-mono text-slate-500 px-1 select-none font-bold">
+              平移
+            </span>
+            <button
+              onClick={handleScrollRight}
+              className="p-1 rounded text-slate-400 hover:text-white transition-colors cursor-pointer"
+              title="向右平移"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
           </div>
         </div>
 
-        {/* Timeline Navigation Controls (Zoom & Scroll) */}
-        <div className="flex items-center gap-1.5 bg-[#000000] p-1 rounded-xl border border-[#1e222d]">
-          <button
-            onClick={handleScrollLeft}
-            className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
-            title="向左移动图表 (历史)"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-          
-          <button
-            onClick={handleZoomOut}
-            className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
-            title="缩小 (查看更多 K 线)"
-          >
-            <ZoomOut className="w-4 h-4" />
-          </button>
-
-          <span className="text-[9px] px-1.5 font-mono text-slate-400 select-none font-bold">
-            {zoomLevel} 根K线
-          </span>
-
-          <button
-            onClick={handleZoomIn}
-            className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
-            title="放大 (查看 K 线细节)"
-          >
-            <ZoomIn className="w-4 h-4" />
-          </button>
-
-          <button
-            onClick={handleScrollRight}
-            className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
-            title="向右移动图表 (最新)"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
+        {/* Price Action Details - clean and responsive */}
+        <div className="min-h-[16px] flex items-center justify-start sm:justify-end">
+          {hoveredCandle ? (
+            <p className="text-[9px] sm:text-[10px] font-mono text-slate-400 flex flex-wrap gap-x-2 gap-y-0.5">
+              <span>时间: <b className="text-slate-200">{new Date(hoveredCandle.candle.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</b></span>
+              <span>开: <b className="text-[#00c805]">{hoveredCandle.candle.open}</b></span>
+              <span>高: <b className="text-[#00c805]">{hoveredCandle.candle.high}</b></span>
+              <span>低: <b className="text-[#ff3b30]">{hoveredCandle.candle.low}</b></span>
+              <span>收: <b className={hoveredCandle.candle.close >= hoveredCandle.candle.open ? "text-[#00c805]" : "text-[#ff3b30]"}>{hoveredCandle.candle.close}</b></span>
+            </p>
+          ) : (
+            <p className="hidden sm:inline-block text-[10px] text-slate-500">
+              提示：长按或悬停 K 线查看细节，拖动平移
+            </p>
+          )}
         </div>
       </div>
 
@@ -945,8 +1026,40 @@ export default function PriceActionChart({
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseLeave}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
         className={`relative w-full select-none ${isDragging ? "cursor-grabbing" : "cursor-crosshair"}`}
       >
+        {/* Floating Zoom Slider in the bottom-right corner of the chart */}
+        <div className="absolute bottom-6 right-3 sm:right-5 flex items-center gap-1.5 bg-black/85 backdrop-blur-md px-2 py-1 rounded-full border border-neutral-800 shadow-2xl z-20 hover:border-neutral-700 transition-all">
+          <button
+            onClick={handleZoomOut}
+            className="p-1 rounded-full text-slate-400 hover:text-white hover:bg-neutral-800 transition-colors cursor-pointer"
+            title="缩小"
+          >
+            <ZoomOut className="w-3.5 h-3.5" />
+          </button>
+          <input
+            type="range"
+            min={15}
+            max={Math.min(totalCandles, 150)}
+            value={zoomLevel}
+            onChange={(e) => {
+              const val = parseInt(e.target.value);
+              setZoomLevel(val);
+              setStartIndex(prev => Math.max(0, Math.min(totalCandles - val, prev)));
+            }}
+            className="w-16 sm:w-24 h-1 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-white"
+          />
+          <button
+            onClick={handleZoomIn}
+            className="p-1 rounded-full text-slate-400 hover:text-white hover:bg-neutral-800 transition-colors cursor-pointer"
+            title="放大"
+          >
+            <ZoomIn className="w-3.5 h-3.5" />
+          </button>
+        </div>
         <svg
           viewBox={`0 0 ${chartWidth} ${totalChartHeight + 20}`}
           width="100%"

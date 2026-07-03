@@ -98,7 +98,7 @@ export default function ChallengeMode({ candles, patterns, zones, trend }: Chall
         </p>
         <button
           onClick={() => window.location.reload()}
-          className="mt-5 px-5 py-2.5 bg-white hover:bg-neutral-200 text-black font-black text-xs cursor-pointer transition-all border border-white rounded-none"
+          className="mt-5 px-5 py-3 sm:py-2.5 bg-white hover:bg-neutral-200 text-black font-black text-xs cursor-pointer transition-all border border-white rounded-none min-h-[44px] sm:min-h-0"
         >
           刷新重试
         </button>
@@ -284,7 +284,7 @@ export default function ChallengeMode({ candles, patterns, zones, trend }: Chall
                             selectPatternForChallenge(matched[matched.length - 1]);
                           }
                         }}
-                        className={`px-2 py-0.5 text-[10px] font-bold rounded-none transition-all cursor-pointer ${
+                        className={`px-3 py-1.5 sm:py-1 text-[10px] font-bold rounded-md transition-all cursor-pointer min-h-[32px] sm:min-h-0 ${
                           selectedCategory === cat.id
                             ? "bg-white border-white text-black font-black border"
                             : "bg-transparent border border-transparent hover:border-neutral-800 text-slate-400"
@@ -320,7 +320,7 @@ export default function ChallengeMode({ candles, patterns, zones, trend }: Chall
                         <button
                           key={p.id}
                           onClick={() => selectPatternForChallenge(p)}
-                          className={`px-2 py-1 text-[10px] rounded-none border transition-all flex items-center gap-1.5 cursor-pointer ${
+                          className={`px-3 py-1.5 sm:py-1 text-[10px] rounded-md border transition-all flex items-center gap-1.5 cursor-pointer min-h-[36px] sm:min-h-0 ${
                             isSelected
                               ? "bg-white border-white text-black font-black"
                               : "bg-black border-neutral-800 hover:border-white text-slate-300"
@@ -516,7 +516,7 @@ export default function ChallengeMode({ candles, patterns, zones, trend }: Chall
                       setupNewChallenge(false);
                     }
                   }}
-                  className="w-full py-2.5 px-4 rounded-none bg-white hover:bg-neutral-200 text-black font-black transition-all flex items-center justify-center gap-1.5 shadow-lg shadow-white/5 cursor-pointer text-xs"
+                  className="w-full py-2.5 px-4 rounded-md bg-white hover:bg-neutral-200 text-black font-black transition-all flex items-center justify-center gap-1.5 shadow-lg shadow-white/5 cursor-pointer text-xs min-h-[38px]"
                 >
                   下一场实战对抗
                   <ArrowRight className="w-3.5 h-3.5" />
