@@ -1,1 +1,13 @@
 @import "tailwindcss";
+
+:root {
+  --up-color: #00c805;
+  --down-color: #ff3b30;
+  --success-color: #00c805;
+  --error-color: #ff3b30;
+}
+
+:root.red-up {
+  --up-color: #ff3b30;
+  --down-color: #00c805;
+}

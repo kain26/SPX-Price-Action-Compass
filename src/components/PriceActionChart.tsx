@@ -756,9 +756,9 @@ export default function PriceActionChart({
       
       // No borders (stroke) - pure soft translucent colored block (色块)
       const colorClass = isSupport 
-        ? "fill-[#00c805]/10" 
+        ? "fill-[var(--up-color)]/10"
         : isResistance 
-          ? "fill-[#ff3b30]/10" 
+          ? "fill-[var(--down-color)]/10"
           : "fill-amber-500/10";
 
       return (
@@ -780,9 +780,9 @@ export default function PriceActionChart({
             strokeDasharray="4,3"
             className={
               isSupport 
-                ? "stroke-[#00c805]/45 stroke-[1]" 
+                ? "stroke-[var(--up-color)]/45 stroke-[1]"
                 : isResistance 
-                  ? "stroke-[#ff3b30]/45 stroke-[1]" 
+                  ? "stroke-[var(--down-color)]/45 stroke-[1]"
                   : "stroke-amber-400/45 stroke-[1]"
             }
           />
@@ -793,9 +793,9 @@ export default function PriceActionChart({
             textAnchor="end"
             className={`font-mono text-[9px] font-medium ${
               isSupport 
-                ? "fill-[#00c805]" 
+                ? "fill-[var(--up-color)]"
                 : isResistance 
-                  ? "fill-[#ff3b30]" 
+                  ? "fill-[var(--down-color)]"
                   : "fill-amber-400"
             }`}
           >
@@ -821,7 +821,7 @@ export default function PriceActionChart({
 
         if (isNaN(x) || isNaN(y)) return null;
 
-        const badgeColor = l.label.startsWith("H") ? "fill-[#00c805]" : "fill-[#ff3b30]";
+        const badgeColor = l.label.startsWith("H") ? "fill-[var(--up-color)]" : "fill-[var(--down-color)]";
         const textColor = "fill-slate-950";
 
         return (
@@ -885,16 +885,16 @@ export default function PriceActionChart({
         const isPending = pattern.type === "PENDING_SIGNAL";
         const isBullish = !isPending && (pattern.type.includes("BULLISH") || pattern.type.includes("BOTTOM") || pattern.type.includes("MORNING") || pattern.type.includes("FLAG_BULLISH") || pattern.type.includes("DOUBLE_BOTTOM"));
         
-        let borderClass = isPending ? "stroke-[#2663ff]/40" : (isBullish ? "stroke-[#00c805]/40" : "stroke-[#ff3b30]/40");
-        let fillClass = isPending ? "fill-[#2663ff]/[0.02]" : (isBullish ? "fill-[#00c805]/[0.02]" : "fill-[#ff3b30]/[0.02]");
+        let borderClass = isPending ? "stroke-[#2663ff]/40" : (isBullish ? "stroke-[var(--up-color)]/40" : "stroke-[var(--down-color)]/40");
+        let fillClass = isPending ? "fill-[#2663ff]/[0.02]" : (isBullish ? "fill-[var(--up-color)]/[0.02]" : "fill-[var(--down-color)]/[0.02]");
 
         if (isSelected) {
           borderClass = isPending 
             ? "stroke-[#2663ff] stroke-[1.5] drop-shadow-[0_0_4px_rgba(38,99,255,0.3)]" 
             : (isBullish 
-              ? "stroke-[#00c805] stroke-[2] drop-shadow-[0_0_4px_rgba(0,200,5,0.3)]" 
-              : "stroke-[#ff3b30] stroke-[2] drop-shadow-[0_0_4px_rgba(255,59,48,0.3)]");
-          fillClass = isPending ? "fill-[#2663ff]/8" : (isBullish ? "fill-[#00c805]/10" : "fill-[#ff3b30]/10");
+              ? "stroke-[var(--up-color)] stroke-[2] drop-shadow-[0_0_4px_rgba(0,200,5,0.3)]"
+              : "stroke-[var(--down-color)] stroke-[2] drop-shadow-[0_0_4px_rgba(255,59,48,0.3)]");
+          fillClass = isPending ? "fill-[#2663ff]/8" : (isBullish ? "fill-[var(--up-color)]/10" : "fill-[var(--down-color)]/10");
         }
 
         const labelText = getPatternLabel(pattern.type, pattern.name);
@@ -975,7 +975,7 @@ export default function PriceActionChart({
         <div className="flex items-center justify-between sm:justify-start w-full sm:w-auto gap-3">
           {/* S&P 500 Index Title / SPX 5m */}
           <div className="flex items-center gap-2">
-            <span className="flex h-1.5 w-1.5 rounded-full bg-[#00c805] animate-pulse"></span>
+            <span className="flex h-1.5 w-1.5 rounded-full bg-[var(--up-color)] animate-pulse"></span>
             <h3 className="text-xs font-semibold text-slate-100 font-mono">
               {/* Desktop version */}
               <span className="hidden sm:inline">
@@ -1015,10 +1015,10 @@ export default function PriceActionChart({
           {hoveredCandle && (
             <p className="text-[9px] sm:text-[10px] font-mono text-slate-400 flex flex-wrap gap-x-2 gap-y-0.5">
               <span>时间: <b className="text-slate-200">{new Date(hoveredCandle.candle.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</b></span>
-              <span>开: <b className="text-[#00c805]">{hoveredCandle.candle.open}</b></span>
-              <span>高: <b className="text-[#00c805]">{hoveredCandle.candle.high}</b></span>
-              <span>低: <b className="text-[#ff3b30]">{hoveredCandle.candle.low}</b></span>
-              <span>收: <b className={hoveredCandle.candle.close >= hoveredCandle.candle.open ? "text-[#00c805]" : "text-[#ff3b30]"}>{hoveredCandle.candle.close}</b></span>
+              <span>开: <b className="text-[var(--up-color)]">{hoveredCandle.candle.open}</b></span>
+              <span>高: <b className="text-[var(--up-color)]">{hoveredCandle.candle.high}</b></span>
+              <span>低: <b className="text-[var(--down-color)]">{hoveredCandle.candle.low}</b></span>
+              <span>收: <b className={hoveredCandle.candle.close >= hoveredCandle.candle.open ? "text-[var(--up-color)]" : "text-[var(--down-color)]"}>{hoveredCandle.candle.close}</b></span>
             </p>
           )}
         </div>
@@ -1227,8 +1227,8 @@ export default function PriceActionChart({
               const yLow = getY(c.low);
 
               const isBullish = c.close >= c.open;
-              const strokeColor = isBullish ? "stroke-[#00c805]" : "stroke-[#ff3b30]";
-              const fillColor = isBullish ? "fill-[#00c805]" : "fill-[#ff3b30]";
+              const strokeColor = isBullish ? "stroke-[var(--up-color)]" : "stroke-[var(--down-color)]";
+              const fillColor = isBullish ? "fill-[var(--up-color)]" : "fill-[var(--down-color)]";
               const candleWidth = Math.max(1.5, (candleAreaWidth / zoomLevel) * 0.75);
 
               return (
@@ -1262,7 +1262,7 @@ export default function PriceActionChart({
                 const yVol = getVolY(c.volume);
                 const candleWidth = Math.max(1.5, (candleAreaWidth / zoomLevel) * 0.7);
                 const isBullish = c.close >= c.open;
-                const fillClass = isBullish ? "fill-[#00c805]/20" : "fill-[#ff3b30]/20";
+                const fillClass = isBullish ? "fill-[var(--up-color)]/20" : "fill-[var(--down-color)]/20";
 
                 return (
                   <rect
