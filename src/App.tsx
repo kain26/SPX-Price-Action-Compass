@@ -20,6 +20,42 @@ const PATTERN_CATEGORIES = [
   { val: "TRIANGLE", label: "收敛整理 (Triangle)" },
 ];
 
+type ColorScheme = "green-up" | "red-up";
+
+const readStoredValue = (key: string): string | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+};
+
+const writeStoredValue = (key: string, value: string) => {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    // Ignore storage failures so UI state remains usable.
+  }
+};
+
+const readStoredColorScheme = (): ColorScheme => {
+  const saved = readStoredValue("spx_color_scheme");
+  return saved === "red-up" || saved === "green-up" ? saved : "green-up";
+};
+
+const readStoredBoolean = (key: string, fallback: boolean): boolean => {
+  const saved = readStoredValue(key);
+  if (saved === null) return fallback;
+  try {
+    const parsed = JSON.parse(saved);
+    return typeof parsed === "boolean" ? parsed : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<"review" | "challenge">("review");
   const [timeframe, setTimeframe] = useState<"1m" | "5m" | "15m" | "4h" | "1d">("5m"); // Default to "5m" (5min K)
@@ -32,12 +68,10 @@ export default function App() {
   const [selectedPattern, setSelectedPattern] = useState<DetectedPattern | null>(null);
   const [focusIndex, setFocusIndex] = useState<number | null>(null);
 
-  const [colorScheme, setColorScheme] = useState<'green-up' | 'red-up'>(() => {
-    return (localStorage.getItem('spx_color_scheme') as 'green-up' | 'red-up') || 'green-up';
-  });
+  const [colorScheme, setColorScheme] = useState<ColorScheme>(readStoredColorScheme);
 
   useEffect(() => {
-    localStorage.setItem('spx_color_scheme', colorScheme);
+    writeStoredValue("spx_color_scheme", colorScheme);
     if (colorScheme === 'red-up') {
       document.documentElement.classList.add('red-up');
     } else {
@@ -60,37 +94,25 @@ export default function App() {
   const [patternFilters, setPatternFilters] = useState<string[]>(["ENGULFING", "PIN_BAR"]);
 
   // Visibility toggles
-  const [showPatterns, setShowPatterns] = useState<boolean>(() => {
-    const saved = localStorage.getItem('spx_show_patterns');
-    return saved !== null ? JSON.parse(saved) : true;
-  });
-  const [showZones, setShowZones] = useState<boolean>(() => {
-    const saved = localStorage.getItem('spx_show_zones');
-    return saved !== null ? JSON.parse(saved) : true;
-  });
-  const [showTrends, setShowTrends] = useState<boolean>(() => {
-    const saved = localStorage.getItem('spx_show_trends');
-    return saved !== null ? JSON.parse(saved) : true;
-  });
-  const [showVolume, setShowVolume] = useState<boolean>(() => {
-    const saved = localStorage.getItem('spx_show_volume');
-    return saved !== null ? JSON.parse(saved) : true;
-  });
+  const [showPatterns, setShowPatterns] = useState<boolean>(() => readStoredBoolean("spx_show_patterns", true));
+  const [showZones, setShowZones] = useState<boolean>(() => readStoredBoolean("spx_show_zones", true));
+  const [showTrends, setShowTrends] = useState<boolean>(() => readStoredBoolean("spx_show_trends", true));
+  const [showVolume, setShowVolume] = useState<boolean>(() => readStoredBoolean("spx_show_volume", true));
 
   useEffect(() => {
-    localStorage.setItem('spx_show_patterns', JSON.stringify(showPatterns));
+    writeStoredValue("spx_show_patterns", JSON.stringify(showPatterns));
   }, [showPatterns]);
 
   useEffect(() => {
-    localStorage.setItem('spx_show_zones', JSON.stringify(showZones));
+    writeStoredValue("spx_show_zones", JSON.stringify(showZones));
   }, [showZones]);
 
   useEffect(() => {
-    localStorage.setItem('spx_show_trends', JSON.stringify(showTrends));
+    writeStoredValue("spx_show_trends", JSON.stringify(showTrends));
   }, [showTrends]);
 
   useEffect(() => {
-    localStorage.setItem('spx_show_volume', JSON.stringify(showVolume));
+    writeStoredValue("spx_show_volume", JSON.stringify(showVolume));
   }, [showVolume]);
 
   // Dropdown states & helpers
