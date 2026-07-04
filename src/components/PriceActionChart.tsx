@@ -902,10 +902,10 @@ export default function PriceActionChart({
         const badgeX = xStart + (width - badgeWidth) / 2;
         const badgeY = yTop - 15;
 
-        let badgeBgClass = isPending 
-          ? "fill-[#070d1a] stroke-[#2663ff]/40" 
-          : (isBullish ? "fill-[#132c1e] stroke-[#24593b]" : "fill-[#3a1515] stroke-[#6e2727]");
-        let textFillClass = isPending ? "fill-[#5185ff]" : (isBullish ? "fill-[#4ade80]" : "fill-[#f87171]");
+        let badgeBgClass = isPending
+          ? "fill-[#070d1a] stroke-[#2663ff]/40"
+          : (isBullish ? "fill-[var(--up-color)]/15 stroke-[var(--up-color)]/40" : "fill-[var(--down-color)]/15 stroke-[var(--down-color)]/40");
+        let textFillClass = isPending ? "fill-[#5185ff]" : (isBullish ? "fill-[var(--up-color)]" : "fill-[var(--down-color)]");
 
         if (isSelected && !isPending) {
           badgeBgClass = "fill-[#2663ff] stroke-[#4f80ff]";
@@ -1072,10 +1072,10 @@ export default function PriceActionChart({
             TREND:
           </span>
           <span className={`flex items-center gap-1 text-[9px] font-mono font-bold px-1 py-0.5 rounded ${
-            trend.direction === "UP" 
-              ? "bg-[#132c1e] text-[#4ade80] border border-[#24593b]" 
-              : trend.direction === "DOWN" 
-                ? "bg-[#3a1515] text-[#f87171] border border-[#6e2727]" 
+            trend.direction === "UP"
+              ? "bg-[var(--up-color)]/15 text-[var(--up-color)] border border-[var(--up-color)]/40"
+              : trend.direction === "DOWN"
+                ? "bg-[var(--down-color)]/15 text-[var(--down-color)] border border-[var(--down-color)]/40"
                 : "bg-neutral-800 text-slate-300 border border-neutral-700"
           }`}>
             {trend.direction === "UP" && "↑ 看涨"}
