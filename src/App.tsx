@@ -32,9 +32,12 @@ export default function App() {
   const [selectedPattern, setSelectedPattern] = useState<DetectedPattern | null>(null);
   const [focusIndex, setFocusIndex] = useState<number | null>(null);
 
-  const [colorScheme, setColorScheme] = useState<'green-up' | 'red-up'>('green-up');
+  const [colorScheme, setColorScheme] = useState<'green-up' | 'red-up'>(() => {
+    return (localStorage.getItem('spx_color_scheme') as 'green-up' | 'red-up') || 'green-up';
+  });
 
   useEffect(() => {
+    localStorage.setItem('spx_color_scheme', colorScheme);
     if (colorScheme === 'red-up') {
       document.documentElement.classList.add('red-up');
     } else {
@@ -57,10 +60,38 @@ export default function App() {
   const [patternFilters, setPatternFilters] = useState<string[]>(["ENGULFING", "PIN_BAR"]);
 
   // Visibility toggles
-  const [showPatterns, setShowPatterns] = useState<boolean>(true);
-  const [showZones, setShowZones] = useState<boolean>(true);
-  const [showTrends, setShowTrends] = useState<boolean>(true);
-  const [showVolume, setShowVolume] = useState<boolean>(true);
+  const [showPatterns, setShowPatterns] = useState<boolean>(() => {
+    const saved = localStorage.getItem('spx_show_patterns');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
+  const [showZones, setShowZones] = useState<boolean>(() => {
+    const saved = localStorage.getItem('spx_show_zones');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
+  const [showTrends, setShowTrends] = useState<boolean>(() => {
+    const saved = localStorage.getItem('spx_show_trends');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
+  const [showVolume, setShowVolume] = useState<boolean>(() => {
+    const saved = localStorage.getItem('spx_show_volume');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('spx_show_patterns', JSON.stringify(showPatterns));
+  }, [showPatterns]);
+
+  useEffect(() => {
+    localStorage.setItem('spx_show_zones', JSON.stringify(showZones));
+  }, [showZones]);
+
+  useEffect(() => {
+    localStorage.setItem('spx_show_trends', JSON.stringify(showTrends));
+  }, [showTrends]);
+
+  useEffect(() => {
+    localStorage.setItem('spx_show_volume', JSON.stringify(showVolume));
+  }, [showVolume]);
 
   // Dropdown states & helpers
   const [showFilterDropdown, setShowFilterDropdown] = useState<boolean>(false);
