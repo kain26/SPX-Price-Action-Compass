@@ -5,7 +5,7 @@ import PatternList from "./components/PatternList.tsx";
 import PriceActionChart from "./components/PriceActionChart.tsx";
 import ChallengeMode from "./components/ChallengeMode.tsx";
 import { Candle, DetectedPattern, SupportResistanceZone, MarketTrend, SPXDataResponse } from "./types.js";
-import { SlidersHorizontal, BookOpen, GraduationCap, Flame, RefreshCw, BarChart3, HelpCircle, Layers, Eye, EyeOff, ChevronDown, Check, Filter, Sparkles, TrendingUp, ChevronRight, Clock, Grid, Triangle, ArrowUpDown } from "lucide-react";
+import { SlidersHorizontal, BookOpen, GraduationCap, Flame, RefreshCw, BarChart3, HelpCircle, Layers, Eye, EyeOff, ChevronDown, Check, Filter, Sparkles, TrendingUp, ChevronRight, Clock, Grid, Triangle, ArrowUpDown, Palette } from "lucide-react";
 import DiagnosticModal from "./components/DiagnosticModal.tsx";
 
 const PATTERN_CATEGORIES = [
@@ -20,6 +20,42 @@ const PATTERN_CATEGORIES = [
   { val: "TRIANGLE", label: "收敛整理 (Triangle)" },
 ];
 
+type ColorScheme = "green-up" | "red-up";
+
+const readStoredValue = (key: string): string | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+};
+
+const writeStoredValue = (key: string, value: string) => {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    // Ignore storage failures so UI state remains usable.
+  }
+};
+
+const readStoredColorScheme = (): ColorScheme => {
+  const saved = readStoredValue("spx_color_scheme");
+  return saved === "red-up" || saved === "green-up" ? saved : "green-up";
+};
+
+const readStoredBoolean = (key: string, fallback: boolean): boolean => {
+  const saved = readStoredValue(key);
+  if (saved === null) return fallback;
+  try {
+    const parsed = JSON.parse(saved);
+    return typeof parsed === "boolean" ? parsed : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<"review" | "challenge">("review");
   const [timeframe, setTimeframe] = useState<"1m" | "5m" | "15m" | "4h" | "1d">("5m"); // Default to "5m" (5min K)
@@ -31,6 +67,17 @@ export default function App() {
 
   const [selectedPattern, setSelectedPattern] = useState<DetectedPattern | null>(null);
   const [focusIndex, setFocusIndex] = useState<number | null>(null);
+
+  const [colorScheme, setColorScheme] = useState<ColorScheme>(readStoredColorScheme);
+
+  useEffect(() => {
+    writeStoredValue("spx_color_scheme", colorScheme);
+    if (colorScheme === 'red-up') {
+      document.documentElement.classList.add('red-up');
+    } else {
+      document.documentElement.classList.remove('red-up');
+    }
+  }, [colorScheme]);
 
   const [syncing, setSyncing] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
@@ -47,10 +94,26 @@ export default function App() {
   const [patternFilters, setPatternFilters] = useState<string[]>(["ENGULFING", "PIN_BAR"]);
 
   // Visibility toggles
-  const [showPatterns, setShowPatterns] = useState<boolean>(true);
-  const [showZones, setShowZones] = useState<boolean>(true);
-  const [showTrends, setShowTrends] = useState<boolean>(true);
-  const [showVolume, setShowVolume] = useState<boolean>(true);
+  const [showPatterns, setShowPatterns] = useState<boolean>(() => readStoredBoolean("spx_show_patterns", true));
+  const [showZones, setShowZones] = useState<boolean>(() => readStoredBoolean("spx_show_zones", true));
+  const [showTrends, setShowTrends] = useState<boolean>(() => readStoredBoolean("spx_show_trends", true));
+  const [showVolume, setShowVolume] = useState<boolean>(() => readStoredBoolean("spx_show_volume", true));
+
+  useEffect(() => {
+    writeStoredValue("spx_show_patterns", JSON.stringify(showPatterns));
+  }, [showPatterns]);
+
+  useEffect(() => {
+    writeStoredValue("spx_show_zones", JSON.stringify(showZones));
+  }, [showZones]);
+
+  useEffect(() => {
+    writeStoredValue("spx_show_trends", JSON.stringify(showTrends));
+  }, [showTrends]);
+
+  useEffect(() => {
+    writeStoredValue("spx_show_volume", JSON.stringify(showVolume));
+  }, [showVolume]);
 
   // Dropdown states & helpers
   const [showFilterDropdown, setShowFilterDropdown] = useState<boolean>(false);
@@ -319,7 +382,7 @@ export default function App() {
                   }
                 })()}
               </div>
-              <div className="text-sm font-mono font-extrabold leading-none text-[#00c805]">
+              <div className="text-sm font-mono font-extrabold leading-none text-[var(--up-color)]">
                 {latestCandle.close.toFixed(2)}
               </div>
             </div>
@@ -456,6 +519,20 @@ export default function App() {
                         <span className="hidden xs:inline">成交量</span>
                       </button>
 
+                      {/* Color Scheme Toggle */}
+                      <button
+                        onClick={() => setColorScheme(colorScheme === 'green-up' ? 'red-up' : 'green-up')}
+                        className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-md border text-[10px] font-bold transition-all cursor-pointer min-h-[32px] ${
+                          colorScheme === 'green-up'
+                            ? "bg-white border-white text-black font-black"
+                            : "bg-[#0d0d11] border-neutral-800 text-slate-400 hover:text-white hover:border-neutral-600 hover:bg-neutral-900"
+                        }`}
+                        title="切换 K 线颜色方案：默认绿涨红跌 / 亚太红涨绿跌"
+                      >
+                        <Palette className="w-3.5 h-3.5" />
+                        <span className="hidden xs:inline">{colorScheme === 'green-up' ? "绿涨红跌" : "红涨绿跌"}</span>
+                      </button>
+
                       {/* Pattern Filter Button */}
                       <div className="relative flex-1 sm:flex-initial">
                         <button
@@ -568,7 +645,7 @@ export default function App() {
                           >
                             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                               <span className="flex items-center gap-1.5 text-xs font-mono font-bold text-slate-300">
-                                <span className="flex h-2 w-2 rounded-full bg-[#00c805] animate-pulse" />
+                                <span className="flex h-2 w-2 rounded-full bg-[var(--up-color)] animate-pulse" />
                                 形态识别: <span className="text-white font-black">{displayLabel}</span>
                               </span>
                               <span className="text-neutral-800 hidden sm:inline">|</span>
@@ -646,11 +723,11 @@ export default function App() {
                             </div>
                             <div>
                               <div className="text-[9px] text-slate-500 uppercase tracking-wider font-mono">日内最高</div>
-                              <div className="text-xs font-bold text-[#00c805] font-mono">${Math.max(...drilldownCandles.map(c => c.high)).toFixed(2)}</div>
+                              <div className="text-xs font-bold text-[var(--up-color)] font-mono">${Math.max(...drilldownCandles.map(c => c.high)).toFixed(2)}</div>
                             </div>
                             <div>
                               <div className="text-[9px] text-slate-500 uppercase tracking-wider font-mono">日内最低</div>
-                              <div className="text-xs font-bold text-[#ff3b30] font-mono">${Math.min(...drilldownCandles.map(c => c.low)).toFixed(2)}</div>
+                              <div className="text-xs font-bold text-[var(--down-color)] font-mono">${Math.min(...drilldownCandles.map(c => c.low)).toFixed(2)}</div>
                             </div>
                           </div>
 

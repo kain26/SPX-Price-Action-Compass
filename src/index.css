@@ -1,1 +1,17 @@
 @import "tailwindcss";
+
+:root {
+  --up-color: #00c805;
+  --down-color: #ff3b30;
+  --up-shadow-color: rgba(0, 200, 5, 0.3);
+  --down-shadow-color: rgba(255, 59, 48, 0.3);
+  --success-color: #00c805;
+  --error-color: #ff3b30;
+}
+
+:root.red-up {
+  --up-color: #ff3b30;
+  --down-color: #00c805;
+  --up-shadow-color: rgba(255, 59, 48, 0.3);
+  --down-shadow-color: rgba(0, 200, 5, 0.3);
+}

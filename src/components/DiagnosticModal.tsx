@@ -37,18 +37,18 @@ function PatternDiagram({ type }: { type: string }) {
         <div className="flex flex-col items-center">
           <div className="text-[9px] text-slate-500 font-mono mb-2">前序跌势</div>
           <div className="flex flex-col items-center h-16 w-8 justify-center">
-            <div className="w-0.5 h-2 bg-red-500/50" />
-            <div className="w-3 h-5 bg-red-500/20 border border-red-500/50" />
-            <div className="w-0.5 h-2 bg-red-500/50" />
+            <div className="w-0.5 h-2 bg-[var(--down-color)]/50" />
+            <div className="w-3 h-5 bg-[var(--down-color)]/20 border border-[var(--down-color)]/50" />
+            <div className="w-0.5 h-2 bg-[var(--down-color)]/50" />
           </div>
         </div>
         <div className="text-sm text-neutral-600 font-mono">→</div>
         <div className="flex flex-col items-center">
-          <div className="text-[9px] text-emerald-400 font-mono mb-2">看涨 Pin Bar (锤子线)</div>
+          <div className="text-[9px] text-[var(--up-color)] font-mono mb-2">看涨 Pin Bar (锤子线)</div>
           <div className="flex flex-col items-center h-16 w-8 justify-start">
-            <div className="w-0.5 h-1 bg-emerald-500" />
-            <div className="w-4 h-3 bg-emerald-500 border border-emerald-400" />
-            <div className="w-0.5 h-10 bg-emerald-500" />
+            <div className="w-0.5 h-1 bg-[var(--up-color)]" />
+            <div className="w-4 h-3 bg-[var(--up-color)] border border-[var(--up-color)]" />
+            <div className="w-0.5 h-10 bg-[var(--up-color)]" />
           </div>
         </div>
       </div>
@@ -61,18 +61,18 @@ function PatternDiagram({ type }: { type: string }) {
         <div className="flex flex-col items-center">
           <div className="text-[9px] text-slate-500 font-mono mb-2">前序涨势</div>
           <div className="flex flex-col items-center h-16 w-8 justify-center">
-            <div className="w-0.5 h-2 bg-emerald-500/50" />
-            <div className="w-3 h-5 bg-emerald-500/20 border border-emerald-500/50" />
-            <div className="w-0.5 h-2 bg-emerald-500/50" />
+            <div className="w-0.5 h-2 bg-[var(--up-color)]/50" />
+            <div className="w-3 h-5 bg-[var(--up-color)]/20 border border-[var(--up-color)]/50" />
+            <div className="w-0.5 h-2 bg-[var(--up-color)]/50" />
           </div>
         </div>
         <div className="text-sm text-neutral-600 font-mono">→</div>
         <div className="flex flex-col items-center">
-          <div className="text-[9px] text-red-400 font-mono mb-2">看跌 Pin Bar (流星线)</div>
+          <div className="text-[9px] text-[var(--down-color)] font-mono mb-2">看跌 Pin Bar (流星线)</div>
           <div className="flex flex-col items-center h-16 w-8 justify-end">
-            <div className="w-0.5 h-10 bg-red-500" />
-            <div className="w-4 h-3 bg-red-500 border border-red-400" />
-            <div className="w-0.5 h-1 bg-red-500" />
+            <div className="w-0.5 h-10 bg-[var(--down-color)]" />
+            <div className="w-4 h-3 bg-[var(--down-color)] border border-[var(--down-color)]" />
+            <div className="w-0.5 h-1 bg-[var(--down-color)]" />
           </div>
         </div>
       </div>
@@ -83,20 +83,20 @@ function PatternDiagram({ type }: { type: string }) {
     return (
       <div className="flex items-center justify-center gap-6 py-5 bg-neutral-900/60 rounded-xl border border-neutral-800">
         <div className="flex flex-col items-center">
-          <div className="text-[9px] text-red-400 font-mono mb-2">1. 跌势阴线</div>
+          <div className="text-[9px] text-[var(--down-color)] font-mono mb-2">1. 跌势阴线</div>
           <div className="flex flex-col items-center h-16 w-8 justify-center">
-            <div className="w-0.5 h-2 bg-red-500" />
-            <div className="w-4 h-6 bg-red-500 border border-red-400" />
-            <div className="w-0.5 h-2 bg-red-500" />
+            <div className="w-0.5 h-2 bg-[var(--down-color)]" />
+            <div className="w-4 h-6 bg-[var(--down-color)] border border-[var(--down-color)]" />
+            <div className="w-0.5 h-2 bg-[var(--down-color)]" />
           </div>
         </div>
         <div className="text-sm text-neutral-600 font-mono">+</div>
         <div className="flex flex-col items-center">
-          <div className="text-[9px] text-emerald-400 font-mono mb-2">2. 反向吞没</div>
+          <div className="text-[9px] text-[var(--up-color)] font-mono mb-2">2. 反向吞没</div>
           <div className="flex flex-col items-center h-16 w-8 justify-center">
-            <div className="w-0.5 h-1 bg-emerald-500" />
-            <div className="w-5 h-12 bg-emerald-500 border border-emerald-400" />
-            <div className="w-0.5 h-1 bg-emerald-500" />
+            <div className="w-0.5 h-1 bg-[var(--up-color)]" />
+            <div className="w-5 h-12 bg-[var(--up-color)] border border-[var(--up-color)]" />
+            <div className="w-0.5 h-1 bg-[var(--up-color)]" />
           </div>
         </div>
       </div>
@@ -107,20 +107,20 @@ function PatternDiagram({ type }: { type: string }) {
     return (
       <div className="flex items-center justify-center gap-6 py-5 bg-neutral-900/60 rounded-xl border border-neutral-800">
         <div className="flex flex-col items-center">
-          <div className="text-[9px] text-emerald-400 font-mono mb-2">1. 升势阳线</div>
+          <div className="text-[9px] text-[var(--up-color)] font-mono mb-2">1. 升势阳线</div>
           <div className="flex flex-col items-center h-16 w-8 justify-center">
-            <div className="w-0.5 h-2 bg-emerald-500" />
-            <div className="w-4 h-6 bg-emerald-500 border border-emerald-400" />
-            <div className="w-0.5 h-2 bg-emerald-500" />
+            <div className="w-0.5 h-2 bg-[var(--up-color)]" />
+            <div className="w-4 h-6 bg-[var(--up-color)] border border-[var(--up-color)]" />
+            <div className="w-0.5 h-2 bg-[var(--up-color)]" />
           </div>
         </div>
         <div className="text-sm text-neutral-600 font-mono">+</div>
         <div className="flex flex-col items-center">
-          <div className="text-[9px] text-red-400 font-mono mb-2">2. 反向吞没</div>
+          <div className="text-[9px] text-[var(--down-color)] font-mono mb-2">2. 反向吞没</div>
           <div className="flex flex-col items-center h-16 w-8 justify-center">
-            <div className="w-0.5 h-1 bg-red-500" />
-            <div className="w-5 h-12 bg-red-500 border border-red-400" />
-            <div className="w-0.5 h-1 bg-red-500" />
+            <div className="w-0.5 h-1 bg-[var(--down-color)]" />
+            <div className="w-5 h-12 bg-[var(--down-color)] border border-[var(--down-color)]" />
+            <div className="w-0.5 h-1 bg-[var(--down-color)]" />
           </div>
         </div>
       </div>
@@ -133,15 +133,15 @@ function PatternDiagram({ type }: { type: string }) {
       <div className="flex items-center justify-center gap-4 py-5 bg-neutral-900/60 rounded-xl border border-neutral-800">
         <div className="flex flex-col items-center">
           <div className="text-[8px] text-slate-500 font-mono mb-1">1. 前序趋势</div>
-          <div className={`w-3.5 h-10 ${isBullish ? "bg-red-500" : "bg-emerald-500"}`} />
+          <div className={`w-3.5 h-10 ${isBullish ? "bg-[var(--down-color)]" : "bg-[var(--up-color)]"}`} />
         </div>
         <div className="flex flex-col items-center">
           <div className="text-[8px] text-slate-400 font-mono mb-1">2. 十字/孕星</div>
           <div className="w-2.5 h-2.5 bg-neutral-700 mt-4" />
         </div>
         <div className="flex flex-col items-center">
-          <div className="text-[8px] text-emerald-400 font-mono mb-1">3. 趋势转向</div>
-          <div className={`w-3.5 h-10 ${isBullish ? "bg-emerald-500" : "bg-red-500"}`} />
+          <div className={`text-[8px] ${isBullish ? "text-[var(--up-color)]" : "text-[var(--down-color)]"} font-mono mb-1`}>3. 趋势转向</div>
+          <div className={`w-3.5 h-10 ${isBullish ? "bg-[var(--up-color)]" : "bg-[var(--down-color)]"}`} />
         </div>
       </div>
     );
@@ -151,8 +151,8 @@ function PatternDiagram({ type }: { type: string }) {
   return (
     <div className="flex flex-col items-center justify-center py-5 bg-neutral-900/60 rounded-xl border border-neutral-800">
       <div className="w-32 h-12 flex items-end justify-center gap-1.5">
-        <div className="w-2 h-6 bg-red-500/40" />
-        <div className="w-2 h-10 bg-emerald-500" />
+        <div className="w-2 h-6 bg-[var(--down-color)]/40" />
+        <div className="w-2 h-10 bg-[var(--up-color)]" />
         <div className="w-2 h-8 bg-neutral-800" />
       </div>
       <div className="text-[8px] text-slate-500 font-mono mt-2">形态结构示意</div>
@@ -173,9 +173,9 @@ export default function DiagnosticModal({ pattern, onClose }: DiagnosticModalPro
         {/* Decorative upper color band depending on trend direction */}
         <div className={`h-1 w-full ${
           pattern.type.includes("BULLISH") || pattern.type.includes("BOTTOM") || pattern.type.includes("MORNING")
-            ? "bg-emerald-500"
+            ? "bg-[var(--up-color)]"
             : pattern.type.includes("BEARISH") || pattern.type.includes("TOP") || pattern.type.includes("EVENING")
-              ? "bg-red-500"
+              ? "bg-[var(--down-color)]"
               : "bg-indigo-500"
         }`} />
 
