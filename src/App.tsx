@@ -21,7 +21,7 @@ const PATTERN_CATEGORIES = [
 ];
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<"review" | "challenge">("challenge");
+  const [activeTab, setActiveTab] = useState<"review" | "challenge">("review");
   const [timeframe, setTimeframe] = useState<"1m" | "5m" | "15m" | "4h" | "1d">("5m"); // Default to "5m" (5min K)
   const [candles, setCandles] = useState<Candle[]>([]);
   const [patterns, setPatterns] = useState<DetectedPattern[]>([]);
@@ -119,8 +119,8 @@ export default function App() {
     });
   });
 
-  // Fetch SPX data from full-stack backend
-  const fetchData = async (tfStr = timeframe) => {
+  // Fetch SPX data from full-stack backend with automatic retry on failure
+  const fetchData = async (tfStr = timeframe, retries = 3, delayMs = 1500) => {
     setLoading(true);
     try {
       const res = await fetch(`/api/spx-data?timeframe=${tfStr}`);
@@ -153,10 +153,17 @@ export default function App() {
         setSelectedPattern(null);
         setFocusIndex(null);
       }
+      setLoading(false);
     } catch (err) {
       console.error("[fetchData Error]:", err);
-    } finally {
-      setLoading(false);
+      if (retries > 0) {
+        console.log(`Retrying fetchData in ${delayMs}ms... (${retries} attempts left)`);
+        setTimeout(() => {
+          fetchData(tfStr, retries - 1, delayMs);
+        }, delayMs);
+      } else {
+        setLoading(false);
+      }
     }
   };
 
@@ -346,7 +353,7 @@ export default function App() {
                 <div className="lg:col-span-3 flex flex-col gap-4">
                   
                   {/* Chart Utility Toolbar - Clean, flat, borderless bar with NO nested cards */}
-                  <div className="flex items-center gap-2 overflow-x-auto py-1 px-1 no-scrollbar w-full whitespace-nowrap">
+                  <div className="flex flex-wrap items-center justify-between gap-2 py-1 px-1 w-full relative">
                     
                     {/* Timeframe picker - sleek collapsed select button */}
                     <div className="flex items-center gap-1.5 shrink-0">
