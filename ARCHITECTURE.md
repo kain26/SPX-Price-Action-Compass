@@ -108,4 +108,4 @@
 
 本项目可在各大主流容器平台及 Cloud Run 服务中秒级构建部署。
 
-- **官方推荐在线访问地址**: [https://spx-price-action-compass-773950940183.asia-south1.run.app/](https://spx-price-action-compass-773950940183.asia-south1.run.app/)
+- **官方推荐在线访问地址**: [https://spx-price-action-compass-773950940183.europe-west2.run.app/](https://spx-price-action-compass-773950940183.europe-west2.run.app/)
