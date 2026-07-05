@@ -198,88 +198,122 @@ export default function ChallengeMode({ candles, patterns, zones, trend, isChine
     return false;
   });
 
+  const winPercent = quizScore.total > 0 ? Math.round((quizScore.wins / quizScore.total) * 100) : 0;
+  const radius = 16;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (winPercent / 100) * circumference;
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start select-none">
       
       {/* Column 1: Chart Canvas Area & Practice Selector (Left side) */}
       <div className="lg:col-span-2 flex flex-col gap-4">
         
-        {/* Score & Header info - Sleek, flat, borderless inline layout */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-1 py-1">
-          <div className="text-left">
-            <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2 font-mono uppercase tracking-widest">
+        {/* Score & Header info - Sleek, flat, borderless inline layout with premium circular stat */}
+        <div className="flex flex-row items-center justify-between gap-3 px-1 py-1">
+          <div className="text-left flex-1 min-w-0">
+            <h3 className="text-sm sm:text-base font-bold text-slate-100 flex items-center gap-2 font-mono uppercase tracking-widest">
               裸K实战对抗
             </h3>
-            <p className="text-xs text-slate-500 mt-0.5">屏蔽形态信号右侧 K 线，研判下一步发力方向</p>
+            <p className="text-xs text-slate-500 mt-1 truncate">屏蔽形态信号右侧 K 线，研判下一步发力方向</p>
           </div>
           
-          <div className="flex items-center gap-2.5 self-start sm:self-center bg-[#0d0d11] border border-neutral-800 px-3 py-1.5 rounded-none">
-            <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider font-mono">训练得分</span>
-            <span className="text-xs font-mono font-bold text-[#00c805]">
-              胜率: {quizScore.total > 0 ? Math.round((quizScore.wins / quizScore.total) * 100) : 0}%
-              <span className="text-slate-500 font-normal ml-1">({quizScore.wins}/{quizScore.total})</span>
-            </span>
+          <div className="flex items-center gap-3 bg-[#0d0d11] border border-neutral-800/80 p-2 pl-3 pr-3.5 rounded-xl shrink-0">
+            <div className="relative w-10 h-10 flex items-center justify-center shrink-0">
+              <svg className="w-10 h-10 transform -rotate-90">
+                <circle
+                  cx="20"
+                  cy="20"
+                  r={radius}
+                  stroke="#1c1c24"
+                  strokeWidth="3"
+                  fill="transparent"
+                />
+                <circle
+                  cx="20"
+                  cy="20"
+                  r={radius}
+                  stroke={quizScore.total > 0 ? "#00c805" : "#3b3b4f"}
+                  strokeWidth="3"
+                  fill="transparent"
+                  strokeDasharray={circumference}
+                  strokeDashoffset={strokeDashoffset}
+                  strokeLinecap="round"
+                  className="transition-all duration-500 ease-out"
+                />
+              </svg>
+              <span className="absolute text-[9px] font-mono font-black text-white">
+                {winPercent}%
+              </span>
+            </div>
+            
+            <div className="flex flex-col justify-center text-left">
+              <span className="text-[9px] text-neutral-500 uppercase font-bold tracking-wider font-mono">胜率得分</span>
+              <span className="text-xs font-mono font-bold text-white leading-none mt-1">
+                {quizScore.wins} <span className="text-neutral-500 text-[10px] font-normal">/ {quizScore.total}</span>
+              </span>
+            </div>
           </div>
         </div>
 
         {/* Targeted Practice Selector Panel */}
         <div className="bg-black border border-neutral-800 rounded-none p-4 flex flex-col gap-3 text-left">
           {/* Row 1: Fast Mode Selection & Quick t-1/t-2 & Toggleable Advanced Picker */}
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest font-mono">
-                模式选择：
+          <div className="flex flex-row items-center justify-between gap-2 overflow-x-auto no-scrollbar w-full whitespace-nowrap">
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest font-mono shrink-0">
+                模式：
               </span>
-              <div className="flex flex-wrap items-center gap-1.5">
+              <div className="flex items-center gap-1.5 shrink-0">
                 <button
                   onClick={() => {
                     const rand = challengePatterns[Math.floor(Math.random() * challengePatterns.length)];
                     if (rand) selectPatternForChallenge(rand);
                   }}
-                  className="px-2.5 py-1 bg-[#0d0d11] border border-neutral-800 hover:border-white hover:bg-neutral-900 text-white text-[10px] font-bold rounded-none transition-all flex items-center gap-1 cursor-pointer"
+                  className="px-2.5 py-1 bg-[#0d0d11] border border-neutral-800 hover:border-white hover:bg-neutral-900 text-white text-[10px] font-bold rounded-md transition-all flex items-center gap-1 cursor-pointer shrink-0"
                 >
-                  <span>🎲 随机盲盒</span>
+                  <span>随机</span>
                 </button>
                 {sortedPatterns.length >= 1 && (
                   <button
                     onClick={() => selectPatternForChallenge(sortedPatterns[sortedPatterns.length - 1])}
-                    className={`px-2.5 py-1 text-[10px] font-bold rounded-none border transition-all flex items-center gap-1 cursor-pointer ${
+                    className={`px-2.5 py-1 text-[10px] font-bold rounded-md border transition-all flex items-center gap-1 cursor-pointer shrink-0 ${
                       activePattern?.id === sortedPatterns[sortedPatterns.length - 1].id
                         ? "bg-white border-white text-black font-black"
-                        : "bg-black border-neutral-800 hover:border-neutral-500 text-slate-300"
+                        : "bg-[#0d0d11] border-neutral-800 hover:border-neutral-500 text-slate-300"
                     }`}
                   >
-                    <span>🔥 t-1 最新形态</span>
+                    <span>t-1</span>
                   </button>
                 )}
                 {sortedPatterns.length >= 2 && (
                   <button
                     onClick={() => selectPatternForChallenge(sortedPatterns[sortedPatterns.length - 2])}
-                    className={`px-2.5 py-1 text-[10px] font-bold rounded-none border transition-all flex items-center gap-1 cursor-pointer ${
+                    className={`px-2.5 py-1 text-[10px] font-bold rounded-md border transition-all flex items-center gap-1 cursor-pointer shrink-0 ${
                       activePattern?.id === sortedPatterns[sortedPatterns.length - 2].id
                         ? "bg-white border-white text-black font-black"
-                        : "bg-black border-neutral-800 hover:border-neutral-500 text-slate-300"
+                        : "bg-[#0d0d11] border-neutral-800 hover:border-neutral-500 text-slate-300"
                     }`}
                   >
-                    <span>📊 t-2 次新形态</span>
+                    <span>t-2</span>
                   </button>
                 )}
                 <button
                   onClick={() => setShowDatePicker(prev => !prev)}
-                  className={`px-2.5 py-1 text-[10px] font-bold rounded-none border transition-all flex items-center gap-1 cursor-pointer ${
+                  className={`px-2.5 py-1 text-[10px] font-bold rounded-md border transition-all flex items-center gap-1 cursor-pointer shrink-0 ${
                     showDatePicker
                       ? "bg-white border-white text-black font-black"
                       : "bg-[#0d0d11] border-neutral-800 hover:border-slate-500 text-slate-400"
                   }`}
                 >
-                  <span>📅 自选历史信号</span>
-                  {showDatePicker ? <ChevronUp className="w-3 h-3 ml-0.5 shrink-0" /> : <ChevronDown className="w-3 h-3 ml-0.5 shrink-0" />}
+                  <span>自选</span>
+                  {showDatePicker ? <ChevronUp className="w-3 h-3 shrink-0" /> : <ChevronDown className="w-3 h-3 shrink-0" />}
                 </button>
               </div>
             </div>
 
-            <span className="text-[10px] text-slate-500 font-mono">
-              全盘可用形态: <span className="text-slate-300 font-bold">{challengePatterns.length}</span> 个
+            <span className="text-[10px] text-slate-500 font-mono shrink-0 ml-auto">
+              总形态: <span className="text-slate-300 font-bold">{challengePatterns.length}</span>
             </span>
           </div>
 

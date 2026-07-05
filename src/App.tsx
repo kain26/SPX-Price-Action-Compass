@@ -271,11 +271,11 @@ export default function App() {
             </div>
           </div>
 
-          {/* Mode Tabs Switch */}
-          <div className="flex items-center bg-[#0d0d11] p-1 rounded-lg border border-neutral-800 w-full sm:w-auto justify-center">
+          {/* Mode Tabs Switch (Desktop) */}
+          <div className="hidden sm:flex items-center bg-[#0d0d11] p-1 rounded-lg border border-neutral-800 w-full sm:w-auto justify-center">
             <button
               onClick={() => setActiveTab("review")}
-              className={`px-4 py-1.5 sm:py-1.5 rounded-md text-xs font-bold tracking-widest transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer min-h-[36px] sm:min-h-0 flex-1 sm:flex-initial ${
+              className={`px-4 py-1.5 rounded-md text-xs font-bold tracking-widest transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer min-h-0 flex-initial ${
                 activeTab === "review"
                   ? "bg-white text-black font-black border border-white shadow-[0_2px_8px_rgba(255,255,255,0.15)]"
                   : "bg-transparent text-slate-400 hover:text-white border border-transparent hover:border-neutral-700"
@@ -290,7 +290,7 @@ export default function App() {
                 setSelectedPattern(null);
                 setFocusIndex(null);
               }}
-              className={`px-4 py-1.5 sm:py-1.5 rounded-md text-xs font-bold tracking-widest transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer min-h-[36px] sm:min-h-0 flex-1 sm:flex-initial ${
+              className={`px-4 py-1.5 rounded-md text-xs font-bold tracking-widest transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer min-h-0 flex-initial ${
                 activeTab === "challenge"
                   ? "bg-white text-black font-black border border-white shadow-[0_2px_8px_rgba(255,255,255,0.15)]"
                   : "bg-transparent text-slate-400 hover:text-white border border-transparent hover:border-neutral-700"
@@ -329,7 +329,7 @@ export default function App() {
       </header>
 
       {/* 2. Main Content Dashboard Stage */}
-      <main className="flex-1 w-full max-w-7xl mx-auto px-6 py-6 flex flex-col gap-6">
+      <main className="flex-1 w-full max-w-7xl mx-auto px-2 sm:px-6 py-4 sm:py-6 pb-24 sm:pb-6 flex flex-col gap-6">
         
         {loading && candles.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center py-20">
@@ -346,14 +346,14 @@ export default function App() {
                 <div className="lg:col-span-3 flex flex-col gap-4">
                   
                   {/* Chart Utility Toolbar - Clean, flat, borderless bar with NO nested cards */}
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 py-1 px-1">
+                  <div className="flex items-center gap-2 overflow-x-auto py-1 px-1 no-scrollbar w-full whitespace-nowrap">
                     
                     {/* Timeframe picker - sleek collapsed select button */}
-                    <div className="flex items-center gap-1.5 w-full sm:w-auto">
-                      <div className="relative w-full sm:w-auto">
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <div className="relative shrink-0">
                         <button
                           onClick={() => setShowTimeframeDropdown(!showTimeframeDropdown)}
-                          className="w-full sm:w-auto flex items-center justify-between sm:justify-start gap-1.5 px-2.5 py-1.5 bg-[#0d0d11] hover:bg-[#1a1a24] text-white border border-neutral-800 rounded-md text-[10px] sm:text-xs font-bold tracking-wide transition-all cursor-pointer min-h-[32px]"
+                          className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[#0d0d11] hover:bg-[#1a1a24] text-white border border-neutral-800 rounded-md text-[10px] sm:text-xs font-bold tracking-wide transition-all cursor-pointer min-h-[32px] shrink-0"
                           title="选择 K 线时间周期 (1m, 5m, 15m, 4h, 1D)"
                         >
                           <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
@@ -400,7 +400,7 @@ export default function App() {
                       {/* Sleek Apple-style K-line color mode switch */}
                       <button
                         onClick={() => setIsChineseStyle(!isChineseStyle)}
-                        className="group flex items-center justify-center gap-2 h-8 px-2.5 bg-[#0d0d11] hover:bg-[#13131c] text-slate-300 border border-neutral-800 hover:border-neutral-700 rounded-full transition-all cursor-pointer select-none"
+                        className="group flex items-center justify-center gap-2 h-8 px-2.5 bg-[#0d0d11] hover:bg-[#13131c] border border-neutral-800 hover:border-neutral-700 rounded-full transition-all cursor-pointer select-none shrink-0"
                         title={isChineseStyle ? "当前：红涨绿跌 (点击切换为国际标准)" : "当前：绿涨红跌 (点击切换为国内习惯)"}
                       >
                         <span className="flex items-center gap-1">
@@ -415,19 +415,16 @@ export default function App() {
                             }`} 
                           />
                         </span>
-                        <span className="text-[10px] text-slate-400 font-mono font-bold tracking-wider select-none">
-                          {isChineseStyle ? "A股红绿" : "美股红绿"}
-                        </span>
                       </button>
                     </div>
 
                     {/* Functional Toolbar - sleek row of square/iconic controls with active highlights */}
-                    <div className="flex items-center flex-wrap sm:flex-nowrap gap-1.5 py-0.5 max-w-full justify-between sm:justify-end">
+                    <div className="flex items-center gap-1.5 py-0.5 shrink-0 ml-auto">
                       
                       {/* S/R Toggle */}
                       <button
                         onClick={() => setShowZones(!showZones)}
-                        className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-md border text-[10px] font-bold transition-all cursor-pointer min-h-[32px] ${
+                        className={`flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-md border text-[10px] font-bold transition-all cursor-pointer min-h-[32px] shrink-0 ${
                           showZones
                             ? "bg-white border-white text-black font-black"
                             : "bg-[#0d0d11] border-neutral-800 text-slate-400 hover:text-white hover:border-neutral-600 hover:bg-neutral-900"
@@ -441,7 +438,7 @@ export default function App() {
                       {/* Patterns Toggle */}
                       <button
                         onClick={() => setShowPatterns(!showPatterns)}
-                        className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-md border text-[10px] font-bold transition-all cursor-pointer min-h-[32px] ${
+                        className={`flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-md border text-[10px] font-bold transition-all cursor-pointer min-h-[32px] shrink-0 ${
                           showPatterns
                             ? "bg-white border-white text-black font-black"
                             : "bg-[#0d0d11] border-neutral-800 text-slate-400 hover:text-white hover:border-neutral-600 hover:bg-neutral-900"
@@ -455,7 +452,7 @@ export default function App() {
                       {/* Trends (HH/LL) Toggle */}
                       <button
                         onClick={() => setShowTrends(!showTrends)}
-                        className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-md border text-[10px] font-bold transition-all cursor-pointer min-h-[32px] ${
+                        className={`flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-md border text-[10px] font-bold transition-all cursor-pointer min-h-[32px] shrink-0 ${
                           showTrends
                             ? "bg-white border-white text-black font-black"
                             : "bg-[#0d0d11] border-neutral-800 text-slate-400 hover:text-white hover:border-neutral-600 hover:bg-neutral-900"
@@ -469,7 +466,7 @@ export default function App() {
                       {/* Volume Toggle */}
                       <button
                         onClick={() => setShowVolume(!showVolume)}
-                        className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-md border text-[10px] font-bold transition-all cursor-pointer min-h-[32px] ${
+                        className={`flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-md border text-[10px] font-bold transition-all cursor-pointer min-h-[32px] shrink-0 ${
                           showVolume
                             ? "bg-white border-white text-black font-black"
                             : "bg-[#0d0d11] border-neutral-800 text-slate-400 hover:text-white hover:border-neutral-600 hover:bg-neutral-900"
@@ -481,10 +478,10 @@ export default function App() {
                       </button>
 
                       {/* Pattern Filter Button */}
-                      <div className="relative flex-1 sm:flex-initial">
+                      <div className="relative shrink-0">
                         <button
                           onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-                          className={`w-full flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-md border text-[10px] font-bold transition-all cursor-pointer min-h-[32px] ${
+                          className={`flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-md border text-[10px] font-bold transition-all cursor-pointer min-h-[32px] shrink-0 ${
                             showFilterDropdown
                               ? "bg-white border-white text-black font-black"
                               : "bg-[#0d0d11] border-neutral-800 text-slate-400 hover:text-white hover:border-neutral-600 hover:bg-neutral-900"
@@ -755,9 +752,42 @@ export default function App() {
       </main>
 
       {/* 3. Global Sleek Status Bar Footer */}
-      <footer className="py-3 bg-black border-t border-neutral-950 text-center text-[9px] text-slate-600 mt-auto font-mono px-4 select-none">
+      <footer className="hidden sm:block py-3 bg-black border-t border-neutral-950 text-center text-[9px] text-slate-600 mt-auto font-mono px-4 select-none">
         <div>© 2026 SPX Price Action Compass · 数据延迟 (t-1) · 非投资建议 学习用途</div>
       </footer>
+
+      {/* Mobile Bottom Navigation */}
+      <div className="sm:hidden fixed bottom-0 left-0 right-0 bg-[#07070a]/95 backdrop-blur-xl border-t border-neutral-900 z-50 px-8 pb-safe">
+        <div className="flex items-center justify-around h-14">
+          <button
+            onClick={() => setActiveTab("review")}
+            className={`flex flex-col items-center justify-center gap-1.5 py-1 px-4 transition-all duration-200 cursor-pointer ${
+              activeTab === "review"
+                ? "text-white font-bold"
+                : "text-neutral-500 hover:text-neutral-300"
+            }`}
+          >
+            <BarChart3 className={`w-4 h-4 transition-transform duration-200 ${activeTab === "review" ? "text-white scale-110" : "text-neutral-500"}`} />
+            <span className="text-[10px] tracking-widest font-medium">诊断</span>
+          </button>
+          
+          <button
+            onClick={() => {
+              setActiveTab("challenge");
+              setSelectedPattern(null);
+              setFocusIndex(null);
+            }}
+            className={`flex flex-col items-center justify-center gap-1.5 py-1 px-4 transition-all duration-200 cursor-pointer ${
+              activeTab === "challenge"
+                ? "text-white font-bold"
+                : "text-neutral-500 hover:text-neutral-300"
+            }`}
+          >
+            <GraduationCap className={`w-4.5 h-4.5 transition-transform duration-200 ${activeTab === "challenge" ? "text-white scale-110" : "text-neutral-500"}`} />
+            <span className="text-[10px] tracking-widest font-medium">模拟</span>
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

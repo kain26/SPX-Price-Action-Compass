@@ -1010,26 +1010,7 @@ export default function PriceActionChart({
             </h3>
           </div>
 
-          {/* Clean scroll controls - on mobile keep them micro and on the right side of the header */}
-          <div className="flex items-center gap-1 bg-[#000000] p-0.5 rounded-lg border border-[#1e222d]">
-            <button
-              onClick={handleScrollLeft}
-              className="p-1 rounded text-slate-400 hover:text-white transition-colors cursor-pointer"
-              title="向左平移"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <span className="text-[8px] font-mono text-slate-500 px-1 select-none font-bold">
-              平移
-            </span>
-            <button
-              onClick={handleScrollRight}
-              className="p-1 rounded text-slate-400 hover:text-white transition-colors cursor-pointer"
-              title="向右平移"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
+
         </div>
 
         {/* Price Action Details - clean and responsive */}
@@ -1090,23 +1071,7 @@ export default function PriceActionChart({
           </button>
         </div>
 
-        {/* Market Trend Badge in Top-Right of K-line canvas */}
-        <div className="absolute top-3 right-4 flex items-center gap-1.5 bg-neutral-900/95 backdrop-blur-sm px-2 py-1 rounded border border-[#1e222d] shadow-lg z-20 pointer-events-none select-none">
-          <span className="text-[9px] font-mono font-medium text-slate-400">
-            TREND:
-          </span>
-          <span className={`flex items-center gap-1 text-[9px] font-mono font-bold px-1 py-0.5 rounded ${
-            trend.direction === "UP" 
-              ? (isChineseStyle ? "bg-[#3a1515] text-[#f87171] border border-[#6e2727]" : "bg-[#132c1e] text-[#4ade80] border border-[#24593b]") 
-              : trend.direction === "DOWN" 
-                ? (isChineseStyle ? "bg-[#132c1e] text-[#4ade80] border border-[#24593b]" : "bg-[#3a1515] text-[#f87171] border border-[#6e2727]") 
-                : "bg-neutral-800 text-slate-300 border border-neutral-700"
-          }`}>
-            {trend.direction === "UP" && "↑ 看涨"}
-            {trend.direction === "DOWN" && "↓ 看跌"}
-            {trend.direction === "SIDEWAYS" && "⋅ 平稳"}
-          </span>
-        </div>
+
 
         {/* Floating fade-out mobile instruction overlay */}
         <div className={`absolute bottom-16 left-1/2 -translate-x-1/2 bg-neutral-900/95 border border-neutral-800 text-[10px] text-slate-300 px-3 py-1.5 rounded-full shadow-2xl z-30 pointer-events-none transition-opacity duration-1000 sm:hidden ${
