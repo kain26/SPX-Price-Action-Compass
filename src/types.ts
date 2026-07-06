@@ -68,4 +68,5 @@ export interface SPXDataResponse {
   zones: SupportResistanceZone[];
   trend: MarketTrend;
   lastUpdated: string;
+  dailyPreviousClose?: number;
 }

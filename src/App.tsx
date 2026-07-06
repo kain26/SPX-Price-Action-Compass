@@ -28,6 +28,7 @@ export default function App() {
   const [zones, setZones] = useState<SupportResistanceZone[]>([]);
   const [trend, setTrend] = useState<MarketTrend>({ direction: "SIDEWAYS", strength: 50, labels: [] });
   const [lastUpdated, setLastUpdated] = useState<string>("");
+  const [apiPreviousClose, setApiPreviousClose] = useState<number | null>(null);
 
   const [selectedPattern, setSelectedPattern] = useState<DetectedPattern | null>(null);
   const [focusIndex, setFocusIndex] = useState<number | null>(null);
@@ -57,6 +58,9 @@ export default function App() {
   const [showFilterDropdown, setShowFilterDropdown] = useState<boolean>(false);
   const [showTimeframeDropdown, setShowTimeframeDropdown] = useState<boolean>(false);
   const [showDiagnosticModal, setShowDiagnosticModal] = useState<boolean>(false);
+
+  // Challenge mode quiz score state shared globally
+  const [quizScore, setQuizScore] = useState<{ wins: number; total: number }>({ wins: 0, total: 0 });
 
   const getCategoryCount = (val: string) => {
     if (val === "ALL") return patterns.length;
@@ -137,6 +141,7 @@ export default function App() {
       setZones(payload.zones);
       setTrend(payload.trend);
       setLastUpdated(payload.lastUpdated);
+      setApiPreviousClose(payload.dailyPreviousClose || null);
       
       // Find the latest (most recent) Engulfing pattern and select it by default to ensure the viewport centers on the T-1 day range
       const defaultEngulfing = [...payload.patterns].reverse().find(p => p.type.includes("ENGULFING"));
@@ -246,12 +251,46 @@ export default function App() {
   };
 
   const latestCandle = candles[candles.length - 1];
-  const priceChange = latestCandle && candles.length > 1
-    ? latestCandle.close - candles[candles.length - 2].close
-    : 0;
-  const priceChangePct = latestCandle && candles.length > 1 && candles[candles.length - 2].close > 0
-    ? (priceChange / candles[candles.length - 2].close) * 100
-    : 0;
+
+  // Helper to find the previous day's close price to accurately reflect today's cumulative daily percent change
+  const getPreviousDayClosePrice = (): number => {
+    if (!latestCandle || candles.length < 2) return 0;
+    try {
+      const latestNYStr = new Date(latestCandle.time).toLocaleString("en-US", { timeZone: "America/New_York" });
+      const latestNY = new Date(latestNYStr);
+      const latestDateFormatted = `${latestNY.getFullYear()}-${String(latestNY.getMonth() + 1).padStart(2, "0")}-${String(latestNY.getDate()).padStart(2, "0")}`;
+
+      // Search backwards for the last candle with a different (earlier) NY date
+      for (let i = candles.length - 2; i >= 0; i--) {
+        const c = candles[i];
+        const cNYStr = new Date(c.time).toLocaleString("en-US", { timeZone: "America/New_York" });
+        const cNY = new Date(cNYStr);
+        const cDateFormatted = `${cNY.getFullYear()}-${String(cNY.getMonth() + 1).padStart(2, "0")}-${String(cNY.getDate()).padStart(2, "0")}`;
+
+        if (cDateFormatted < latestDateFormatted) {
+          return c.close;
+        }
+      }
+    } catch (e) {
+      console.error("Error calculating previous day close", e);
+    }
+    // Fallback to previous candle close if no earlier day candle is found
+    return candles[candles.length - 2].close;
+  };
+
+  const previousDayClose = apiPreviousClose || getPreviousDayClosePrice();
+
+  const priceChange = latestCandle && previousDayClose > 0
+    ? latestCandle.close - previousDayClose
+    : latestCandle && candles.length > 1
+      ? latestCandle.close - candles[candles.length - 2].close
+      : 0;
+
+  const priceChangePct = latestCandle && previousDayClose > 0
+    ? (priceChange / previousDayClose) * 100
+    : latestCandle && candles.length > 1 && candles[candles.length - 2].close > 0
+      ? ((latestCandle.close - candles[candles.length - 2].close) / candles[candles.length - 2].close) * 100
+      : 0;
 
   return (
     <div className="min-h-screen bg-black text-slate-100 flex flex-col font-sans">
@@ -272,7 +311,7 @@ export default function App() {
                   referrerPolicy="no-referrer"
                 />
               </div>
-              <span className="font-bold text-[11px] sm:text-sm text-white tracking-wider sm:tracking-widest font-mono uppercase">
+              <span className="font-black text-[12px] sm:text-base tracking-widest font-space uppercase bg-gradient-to-b from-white via-neutral-100 to-neutral-400 bg-clip-text text-transparent drop-shadow-sm select-none">
                 SPX Price Action Compass
               </span>
             </div>
@@ -310,25 +349,49 @@ export default function App() {
 
           {/* Live Price Display */}
           {latestCandle && (
-            <div className="hidden lg:flex flex-col items-end gap-0.5 px-3 py-1 rounded-lg border border-neutral-800 bg-[#0d0d11]">
-              <div className="text-[10px] font-mono text-slate-400 font-bold">
-                {(() => {
-                  try {
-                    const dateNYStr = new Date(latestCandle.time).toLocaleString("en-US", { timeZone: "America/New_York" });
-                    const dateNY = new Date(dateNYStr);
-                    const yyyy = dateNY.getFullYear();
-                    const mm = String(dateNY.getMonth() + 1).padStart(2, "0");
-                    const dd = String(dateNY.getDate()).padStart(2, "0");
-                    const hh = String(dateNY.getHours()).padStart(2, "0");
-                    const min = String(dateNY.getMinutes()).padStart(2, "0");
-                    return `${yyyy}-${mm}-${dd} ${hh}:${min}`;
-                  } catch (e) {
-                    return "";
-                  }
-                })()}
+            <div className="hidden lg:flex items-center gap-3 px-3 py-1.5 rounded-lg border border-neutral-800 bg-neutral-900/30 backdrop-blur-sm shadow-inner transition-all hover:border-neutral-700">
+              {/* Left Column: Ticker & Live Status / NY Time */}
+              <div className="flex flex-col items-start gap-0.5">
+                <div className="flex items-center gap-1.5">
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${priceChange >= 0 ? (isChineseStyle ? "bg-[#ff3b30]" : "bg-[#00c805]") : (isChineseStyle ? "bg-[#00c805]" : "bg-[#ff3b30]")}`}></span>
+                    <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${priceChange >= 0 ? (isChineseStyle ? "bg-[#ff3b30]" : "bg-[#00c805]") : (isChineseStyle ? "bg-[#00c805]" : "bg-[#ff3b30]")}`}></span>
+                  </span>
+                  <span className="text-[10px] font-mono font-bold text-neutral-200 uppercase tracking-widest">
+                    SPX LATEST
+                  </span>
+                </div>
+                <div className="flex items-center gap-1 text-[10px] font-mono text-neutral-400 font-bold">
+                  <Clock className="w-2.5 h-2.5 text-neutral-400" />
+                  {(() => {
+                    try {
+                      const dateNYStr = new Date(latestCandle.time).toLocaleString("en-US", { timeZone: "America/New_York" });
+                      const dateNY = new Date(dateNYStr);
+                      const yyyy = dateNY.getFullYear();
+                      const mm = String(dateNY.getMonth() + 1).padStart(2, "0");
+                      const dd = String(dateNY.getDate()).padStart(2, "0");
+                      const hh = String(dateNY.getHours()).padStart(2, "0");
+                      const min = String(dateNY.getMinutes()).padStart(2, "0");
+                      return `${yyyy}-${mm}-${dd} ${hh}:${min}`;
+                    } catch (e) {
+                      return "";
+                    }
+                  })()}
+                </div>
               </div>
-              <div className={`text-sm font-mono font-extrabold leading-none ${priceChange >= 0 ? (isChineseStyle ? "text-[#ff3b30]" : "text-[#00c805]") : (isChineseStyle ? "text-[#00c805]" : "text-[#ff3b30]")}`}>
-                {latestCandle.close.toFixed(2)}
+
+              {/* Vertical divider */}
+              <div className="h-6 w-[1px] bg-neutral-800" />
+
+              {/* Right Column: Price and % Change */}
+              <div className="flex items-baseline gap-1.5">
+                <span className={`text-base font-mono font-black tracking-tight ${priceChange >= 0 ? (isChineseStyle ? "text-[#ff3b30]" : "text-[#00c805]") : (isChineseStyle ? "text-[#00c805]" : "text-[#ff3b30]")}`}>
+                  ${latestCandle.close.toFixed(2)}
+                </span>
+                
+                <span className={`text-[11px] font-mono font-extrabold ${priceChange >= 0 ? (isChineseStyle ? "text-[#ff3b30]" : "text-[#00c805]") : (isChineseStyle ? "text-[#00c805]" : "text-[#ff3b30]")}`}>
+                  {priceChange >= 0 ? "+" : ""}{priceChangePct.toFixed(2)}%
+                </span>
               </div>
             </div>
           )}
@@ -381,107 +444,6 @@ export default function App() {
                     onTogglePatternFilter={handleTogglePatternFilter}
                     getCategoryCount={getCategoryCount}
                   />
-
-                  {/* Calculate active focus pattern */}
-                  {(() => {
-                    // Highest confidence pattern from filtered list as fallback, or selectedPattern
-                    const activeFocus = selectedPattern || 
-                      (filteredPatterns.length > 0 
-                        ? [...filteredPatterns].sort((a, b) => b.confidence - a.confidence)[0] 
-                        : null);
-                        
-                    if (!activeFocus) return null;
-
-                    const displayLabel = (() => {
-                      switch (activeFocus.type) {
-                        case "PIN_BAR_BULLISH": return "看涨 Pin Bar (锤子线)";
-                        case "PIN_BAR_BEARISH": return "看跌 Pin Bar (流星线)";
-                        case "ENGULFING_BULLISH": return "看涨吞没 (Bullish Engulfing)";
-                        case "ENGULFING_BEARISH": return "看跌吞没 (Bearish Engulfing)";
-                        case "MORNING_STAR": return "启明星反转 (Morning Star)";
-                        case "EVENING_STAR": return "黄昏星反转 (Evening Star)";
-                        case "DOJI": return "十字星 (Doji)";
-                        case "INSIDE_BAR": return "内含线 (Inside Bar)";
-                        case "DOUBLE_TOP": return "双顶结构 (Double Top)";
-                        case "DOUBLE_BOTTOM": return "双底结构 (Double Bottom)";
-                        case "HEAD_AND_SHOULDERS": return "头肩顶 (Head & Shoulders)";
-                        case "INVERSE_HEAD_AND_SHOULDERS": return "逆头肩底 (Inverse H&S)";
-                        case "FLAG_BULLISH": return "看涨旗形 (Bullish Flag)";
-                        case "FLAG_BEARISH": return "看跌旗形 (Bearish Flag)";
-                        case "TRIANGLE_ASCENDING": return "上升三角形 (Ascending Triangle)";
-                        case "TRIANGLE_DESCENDING": return "下降三角形 (Descending Triangle)";
-                        case "TRIANGLE_SYMMETRICAL": return "对称三角形 (Symmetrical Triangle)";
-                        default: return activeFocus.name.split(" (")[0];
-                      }
-                    })();
-
-                    const isBullish = activeFocus.type.includes("BULLISH") || 
-                                      activeFocus.type.includes("BOTTOM") || 
-                                      activeFocus.type === "MORNING_STAR" ||
-                                      activeFocus.type.includes("ASCENDING");
-
-                    const isBearish = activeFocus.type.includes("BEARISH") || 
-                                      activeFocus.type.includes("TOP") || 
-                                      activeFocus.type === "EVENING_STAR" ||
-                                      activeFocus.type === "HEAD_AND_SHOULDERS" ||
-                                      activeFocus.type.includes("DESCENDING");
-
-                    const upColor = isChineseStyle ? "#ff3b30" : "#00c805";
-                    const downColor = isChineseStyle ? "#00c805" : "#ff3b30";
-                    const upColorBg = isChineseStyle ? "rgba(255, 59, 48, 0.1)" : "rgba(0, 200, 5, 0.1)";
-                    const downColorBg = isChineseStyle ? "rgba(0, 200, 5, 0.1)" : "rgba(255, 59, 48, 0.1)";
-                    const upColorBorder = isChineseStyle ? "rgba(255, 59, 48, 0.2)" : "rgba(0, 200, 5, 0.2)";
-                    const downColorBorder = isChineseStyle ? "rgba(0, 200, 5, 0.2)" : "rgba(255, 59, 48, 0.2)";
-
-                    const activeColor = isBullish ? upColor : isBearish ? downColor : "#6366f1";
-                    const activeColorBg = isBullish ? upColorBg : isBearish ? downColorBg : "rgba(99, 102, 241, 0.1)";
-                    const activeColorBorder = isBullish ? upColorBorder : isBearish ? downColorBorder : "rgba(99, 102, 241, 0.2)";
-
-                    return (
-                      <>
-                        <div className="mt-3">
-                          <button
-                            onClick={() => setShowDiagnosticModal(true)}
-                            className="w-full flex items-center justify-between px-3 sm:px-4 py-2 sm:py-2.5 bg-[#0b0c10] hover:bg-[#12131a] border border-neutral-800 hover:border-neutral-700 rounded-lg cursor-pointer transition-all duration-200 animate-fade-in group text-left shadow-md gap-3"
-                            style={{
-                              borderLeft: `3px solid ${activeColor}`
-                            }}
-                          >
-                            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3.5">
-                              {/* Pattern Title with Dot Indicator */}
-                              <span className="flex items-center gap-1.5 text-xs sm:text-sm font-bold text-white font-sans">
-                                <span className="flex h-2 w-2 rounded-full animate-pulse" style={{ backgroundColor: activeColor }} />
-                                形态识别: {displayLabel}
-                              </span>
-                              
-                              <div className="flex items-center gap-2 text-[10px] text-slate-400 font-mono">
-                                <span>置信度: <span className="text-amber-500 font-bold">{Math.round(activeFocus.confidence * 100)}%</span></span>
-                                <span className="text-neutral-800">|</span>
-                                <span>参考价: <span className="text-slate-200 font-bold">${activeFocus.price}</span></span>
-                              </div>
-                            </div>
-
-                            <div 
-                              className="flex items-center gap-0.5 text-[11px] font-bold font-sans shrink-0 transition-colors"
-                              style={{ color: activeColor }}
-                            >
-                              <span>查看形态详解</span>
-                              <ChevronRight className="w-3.5 h-3.5 transition-transform duration-200 group-hover:translate-x-0.5" />
-                            </div>
-                          </button>
-                        </div>
-
-                        {showDiagnosticModal && (
-                          <DiagnosticModal
-                            pattern={activeFocus}
-                            onClose={() => setShowDiagnosticModal(false)}
-                            candles={candles}
-                            isChineseStyle={isChineseStyle}
-                          />
-                        )}
-                      </>
-                    );
-                  })()}
 
                   {timeframe === "1d" && (
                     <div className="mt-2 text-center text-xs text-slate-500 font-sans italic">
@@ -594,6 +556,9 @@ export default function App() {
                     timeframe={timeframe}
                     candles={candles}
                     isChineseStyle={isChineseStyle}
+                    quizScore={quizScore}
+                    setQuizScore={setQuizScore}
+                    setActiveTab={setActiveTab}
                   />
                 </div>
               </div>
@@ -606,6 +571,8 @@ export default function App() {
                   zones={zones}
                   trend={trend}
                   isChineseStyle={isChineseStyle}
+                  quizScore={quizScore}
+                  setQuizScore={setQuizScore}
                 />
               </div>
             )}
@@ -614,18 +581,20 @@ export default function App() {
       </main>
 
       {/* 3. Global Sleek Status Bar Footer */}
-      <footer className="py-4 bg-black border-t border-neutral-950 text-[9px] text-slate-600 mt-auto font-mono px-4 sm:px-6 select-none pb-16 sm:pb-3">
-        <div className="max-w-[1800px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-0">
-          <div className="text-center sm:text-left">© 2026 SPX Price Action Compass · 数据延迟 (t-1) · 非投资建议 学习用途</div>
+      <footer className="py-4 bg-[#050507] border-t border-neutral-900 text-[10px] text-neutral-200 mt-auto font-mono px-4 sm:px-6 select-none pb-16 sm:pb-3">
+        <div className="max-w-[1800px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-0">
+          <div className="text-center sm:text-left tracking-wider bg-gradient-to-r from-white via-neutral-200 to-neutral-400 bg-clip-text text-transparent font-bold">
+            © 2026 SPX Price Action Compass · 数据延迟 (t-1) · 非投资建议 学习用途
+          </div>
           <a
             href="https://github.com/kain26/SPX-Price-Action-Compass"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1.5 text-slate-600 hover:text-white transition-colors duration-200"
+            className="flex items-center gap-2 text-white hover:text-white border border-neutral-800 hover:border-neutral-600 bg-neutral-900/60 backdrop-blur-sm px-2.5 py-1 rounded transition-all duration-300 hover:shadow-[0_0_12px_rgba(255,255,255,0.06)] cursor-pointer"
             title="View on GitHub"
           >
-            <Github className="w-3.5 h-3.5" />
-            <span>GitHub Repo</span>
+            <Github className="w-3.5 h-3.5 text-white" />
+            <span className="font-bold tracking-widest uppercase text-[9px] bg-gradient-to-r from-white to-neutral-300 bg-clip-text text-transparent">GitHub Repo</span>
           </a>
         </div>
       </footer>

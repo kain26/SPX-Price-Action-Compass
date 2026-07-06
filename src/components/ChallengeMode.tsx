@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Candle, DetectedPattern, PatternType } from "../types.js";
-import { Award, Eye, Play, Sparkles, Check, X, HelpCircle, ArrowRight, Target, Filter, ChevronDown, ChevronUp, Layers } from "lucide-react";
+import { Award, Eye, Play, Sparkles, Check, X, HelpCircle, ArrowRight, Target, Filter, ChevronDown, ChevronUp, Layers, TrendingUp, TrendingDown, Coins } from "lucide-react";
 import PriceActionChart from "./PriceActionChart.tsx";
 
 interface ChallengeModeProps {
@@ -9,6 +9,8 @@ interface ChallengeModeProps {
   zones: any[];
   trend: any;
   isChineseStyle?: boolean;
+  quizScore: { wins: number; total: number };
+  setQuizScore: React.Dispatch<React.SetStateAction<{ wins: number; total: number }>>;
 }
 
 const CATEGORIES = [
@@ -19,7 +21,15 @@ const CATEGORIES = [
   { id: "HEAD_AND_SHOULDERS", label: "星体/头肩系列" }
 ];
 
-export default function ChallengeMode({ candles, patterns, zones, trend, isChineseStyle = false }: ChallengeModeProps) {
+export default function ChallengeMode({
+  candles,
+  patterns,
+  zones,
+  trend,
+  isChineseStyle = false,
+  quizScore,
+  setQuizScore
+}: ChallengeModeProps) {
   // Filter only high quality / recognizable patterns to test the user on
   // Ensure that there are at least 70 historical candles before the pattern so that the user always gets a clear 71-candle big-picture view
   const challengePatterns = patterns.filter(p => {
@@ -45,7 +55,6 @@ export default function ChallengeMode({ candles, patterns, zones, trend, isChine
   const [cutoffIndex, setCutoffIndex] = useState<number>(-1);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [isAnswered, setIsAnswered] = useState<boolean>(false);
-  const [quizScore, setQuizScore] = useState<{ wins: number; total: number }>({ wins: 0, total: 0 });
   const [revealFuture, setRevealFuture] = useState<boolean>(false);
   const [selectedCategory, setSelectedCategory] = useState<string>("ALL");
   const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
@@ -230,58 +239,11 @@ export default function ChallengeMode({ candles, patterns, zones, trend, isChine
   const strokeDashoffset = circumference - (winPercent / 100) * circumference;
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch select-none flex-1">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch select-none flex-1 animate-fade-in">
       
       {/* Column 1: Chart Canvas Area & Practice Selector (Left side) */}
       <div className="lg:col-span-2 flex flex-col gap-4 h-full">
         
-        {/* Score & Header info - Sleek, flat, borderless inline layout with premium circular stat */}
-        <div className="flex flex-row items-center justify-between gap-3 px-1 py-1">
-          <div className="text-left flex-1 min-w-0">
-            <h3 className="text-sm sm:text-base font-bold text-slate-100 flex items-center gap-2 font-mono uppercase tracking-widest">
-              裸K实战对抗
-            </h3>
-            <p className="text-xs text-slate-500 mt-1 truncate">屏蔽形态信号右侧 K 线，研判下一步发力方向</p>
-          </div>
-          
-          <div className="flex items-center gap-3 bg-[#0d0d11] border border-neutral-800/80 p-2 pl-3 pr-3.5 rounded-xl shrink-0">
-            <div className="relative w-10 h-10 flex items-center justify-center shrink-0">
-              <svg className="w-10 h-10 transform -rotate-90">
-                <circle
-                  cx="20"
-                  cy="20"
-                  r={radius}
-                  stroke="#1c1c24"
-                  strokeWidth="3"
-                  fill="transparent"
-                />
-                <circle
-                  cx="20"
-                  cy="20"
-                  r={radius}
-                  stroke={quizScore.total > 0 ? "#00c805" : "#3b3b4f"}
-                  strokeWidth="3"
-                  fill="transparent"
-                  strokeDasharray={circumference}
-                  strokeDashoffset={strokeDashoffset}
-                  strokeLinecap="round"
-                  className="transition-all duration-500 ease-out"
-                />
-              </svg>
-              <span className="absolute text-[9px] font-mono font-black text-white">
-                {winPercent}%
-              </span>
-            </div>
-            
-            <div className="flex flex-col justify-center text-left">
-              <span className="text-[9px] text-neutral-500 uppercase font-bold tracking-wider font-mono">胜率得分</span>
-              <span className="text-xs font-mono font-bold text-white leading-none mt-1">
-                {quizScore.wins} <span className="text-neutral-500 text-[10px] font-normal">/ {quizScore.total}</span>
-              </span>
-            </div>
-          </div>
-        </div>
-
         {/* Targeted Practice Selector Panel */}
         <div className="bg-black border border-neutral-800 rounded-none p-4 flex flex-col gap-3 text-left">
           {/* Row 1: Fast Mode Selection & Quick t-1/t-2 & Toggleable Advanced Picker */}
@@ -428,7 +390,6 @@ export default function ChallengeMode({ candles, patterns, zones, trend, isChine
                           )}
                           <span className="text-slate-500 font-mono text-[9px]">{dateStr}</span>
                           <span className="font-medium text-slate-200">信号 #{filteredInstances.length - index}</span>
-                          <span className="text-slate-500 font-mono text-[9px]">${Math.round(p.price)}</span>
                         </button>
                       );
                     })}
@@ -465,118 +426,231 @@ export default function ChallengeMode({ candles, patterns, zones, trend, isChine
           isChineseStyle={isChineseStyle}
           isChallengeMode={true}
         />
-        
-        {/* Clean borderless guide text block */}
-        <div className="px-1 text-left text-[11px] text-slate-500 leading-relaxed flex gap-2 font-mono">
-          <Sparkles className="w-4 h-4 text-white shrink-0 mt-0.5" />
-          <p>
-            <b>提示:</b> 最右侧 K 线为<b>信号 K 线</b>。请结合左侧历史 K 线及关键水位，研判未来的发力方向。
-          </p>
-        </div>
       </div>
 
       {/* Column 2: Interactive Questionnaire Area (Right side) */}
       <div className="lg:col-span-1 h-full flex flex-col">
-        <div className="bg-black border border-neutral-800 rounded-none p-4 sm:p-5 shadow-xl flex flex-col justify-between flex-1 min-h-[460px] lg:max-h-[calc(100vh-220px)] xl:max-h-[calc(100vh-200px)] overflow-y-auto scrollbar-thin">
+        <div className="bg-[#050508] border border-neutral-900 rounded-2xl p-5 shadow-[0_8px_32px_rgba(0,0,0,0.5)] flex flex-col justify-between flex-1 min-h-[460px] lg:max-h-[calc(100vh-220px)] xl:max-h-[calc(100vh-200px)] overflow-y-auto scrollbar-none">
           
-          <div>
-            {/* Flat Header inside Sidecard */}
-            <div className="flex items-center justify-between gap-2 border-b border-neutral-800 pb-3.5 mb-5">
-              <h4 className="text-xs font-bold text-slate-100 flex items-center gap-1.5 font-mono uppercase tracking-widest">
-                <HelpCircle className="w-4 h-4 text-white" />
-                交易决策
-              </h4>
+          <div className="space-y-5">
+            {/* Merged Sleek Header with Title, Subtitle, and Score Badge */}
+            <div className="flex flex-row items-center justify-between gap-3 pb-2">
+              <div className="flex items-center gap-2.5 text-left min-w-0">
+                {/* Custom candlestick visual graphic */}
+                <div className="flex items-center gap-1 shrink-0 p-1.5 bg-neutral-950/80 border border-neutral-900 rounded-lg">
+                  <div className="flex flex-col items-center">
+                    <div className="w-[1.5px] h-1.5 bg-emerald-500/80" />
+                    <div className="w-2 h-4 bg-emerald-500/60 rounded-[1px]" />
+                    <div className="w-[1.5px] h-1.5 bg-emerald-500/80" />
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <div className="w-[1.5px] h-2 bg-rose-500/80" />
+                    <div className="w-2 h-5 bg-rose-500/60 rounded-[1px]" />
+                    <div className="w-[1.5px] h-1 bg-rose-500/80" />
+                  </div>
+                </div>
+
+                <div className="min-w-0">
+                  <h4 className="text-sm sm:text-base font-black text-white tracking-wide flex items-center gap-1.5">
+                    裸K实战对抗
+                  </h4>
+                  <p className="text-[10px] text-neutral-400 leading-normal font-sans">
+                    屏蔽信号右侧 K 线，研判未来发力方向
+                  </p>
+                </div>
+              </div>
+
+              {/* Dynamic Winrate Score Pill in Cyan (Softer / elegant color) */}
+              <div className="bg-neutral-900/60 border border-neutral-800/80 rounded-2xl p-1 pr-3 flex items-center gap-2 select-none shrink-0 shadow-lg">
+                <div className="bg-gradient-to-r from-cyan-500/85 to-teal-500/85 rounded-xl px-2.5 py-1 text-white text-[10px] font-black shadow-[0_0_12px_rgba(6,182,212,0.15)] shrink-0">
+                  {winPercent}%
+                </div>
+                
+                <div className="flex flex-col justify-center text-left">
+                  <span className="text-[8px] text-neutral-500 uppercase font-bold tracking-wider leading-none">胜率</span>
+                  <span className="text-[11px] font-mono font-black text-white mt-1 leading-none">
+                    {quizScore.wins}<span className="text-neutral-600 font-normal"> / </span>{quizScore.total}
+                  </span>
+                </div>
+              </div>
             </div>
 
             {activePattern && (
               <div className="space-y-4">
-                {/* Clean, unnested details block */}
-                <div className="text-left font-mono">
-                  <div className="text-[9px] text-slate-500 uppercase tracking-wider">
-                    {isAnswered ? "形态解析" : "实战待决信号"}
-                  </div>
-                  <h4 className="text-sm font-bold text-white mt-1 flex items-center gap-2">
-                    {isAnswered ? activePattern.name : "未知价格行为信号"}
-                    <span className="text-[10px] bg-[#0d0d11] text-slate-400 px-2 py-0.5 rounded-none font-mono border border-neutral-800">
+                {/* Instruction / Information Cards: Rounded, elegant, breathing room */}
+                <div className="rounded-2xl p-4 bg-neutral-950/60 border border-neutral-900/80 shadow-[0_4px_20px_rgba(0,0,0,0.2)] text-left space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-black text-neutral-200 uppercase tracking-wider font-sans">
+                      {isAnswered ? activePattern.name : "未知价格行为信号"}
+                    </span>
+                    <span className="text-[10px] bg-neutral-900 border border-neutral-800/80 text-neutral-400 px-2 py-0.5 rounded-full font-bold font-mono">
                       {isAnswered ? `$${activePattern.price}` : "位置: 信号收盘点"}
                     </span>
-                  </h4>
-                  <p className="text-xs text-slate-400 mt-2 leading-relaxed font-sans">
-                    {isAnswered 
-                      ? activePattern.description 
-                      : "请研判信号 K 线 (Signal Bar) 附近的价格行为与关键支撑阻力，并在下方给出你的多空挂单决策。"}
+                  </div>
+                  <p className="text-[11px] text-neutral-400 leading-relaxed font-sans font-medium">
+                    {isAnswered ? activePattern.description : "最右侧 K 线为信号 K 线。请结合历史走势与支撑压力水位，研判未来的发力方向。"}
                   </p>
                 </div>
 
-                {/* Flat Option Buttons */}
-                <div className="space-y-2.5 pt-1 font-sans">
-                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider text-left font-mono">请给出你的交易决策预案:</p>
+                {/* Answer status / Results ribbon and Next Challenge button */}
+                {isAnswered && (
+                  <div className="space-y-3 animate-fade-in text-left">
+                    <div className={`p-4 rounded-2xl border flex items-start gap-3 shadow-md ${
+                      selectedOption === "SKIP"
+                        ? "bg-neutral-950/60 border-neutral-800 text-slate-300"
+                        : selectedOption === correctAns 
+                          ? "bg-emerald-500/5 border-emerald-500/20 text-emerald-400" 
+                          : "bg-rose-500/5 border-rose-500/20 text-rose-400"
+                    }`}>
+                      {selectedOption === "SKIP" ? (
+                        <Eye className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
+                      ) : selectedOption === correctAns ? (
+                        <Check className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                      ) : (
+                        <X className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                      )}
+                      <div>
+                        <h5 className="text-xs font-black tracking-wide">
+                          {selectedOption === "SKIP" 
+                            ? "选择空仓观望（不计入总胜率）" 
+                            : selectedOption === correctAns 
+                              ? "决策完美！预案符合真实走向" 
+                              : "判断偏差！市场做出了相反的选择"}
+                        </h5>
+                        <p className="text-[10px] text-neutral-400 mt-1 leading-relaxed font-sans">
+                          {selectedOption === "SKIP"
+                            ? `本次待定。真实突破方向为：${correctAns === "LONG" ? "突破多单 (Long Breakout)" : "跌破空单 (Short Breakdown)"}。`
+                            : `真实突破方向为：${correctAns === "LONG" ? "突破多单 (Long Breakout)" : "跌破空单 (Short Breakdown)"}。`}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Primary CTA button */}
+                    <button
+                      onClick={() => {
+                        const matched = sortedPatterns.filter(p => {
+                          if (selectedCategory === "ALL") return true;
+                          if (selectedCategory === "PIN_BAR") return p.type.includes("PIN_BAR");
+                          if (selectedCategory === "ENGULFING") return p.type.includes("ENGULFING");
+                          if (selectedCategory === "DOUBLE") return p.type.includes("DOUBLE");
+                          if (selectedCategory === "HEAD_AND_SHOULDERS") return p.type.includes("HEAD_AND_SHOULDERS") || p.type.includes("STAR");
+                          return false;
+                        });
+                        if (matched.length > 0) {
+                          const rand = matched[Math.floor(Math.random() * matched.length)];
+                          selectPatternForChallenge(rand);
+                        } else {
+                          setupNewChallenge(false);
+                        }
+                      }}
+                      className="w-full py-2.5 px-4 rounded-xl bg-white hover:bg-neutral-200 text-black font-black transition-all duration-200 flex items-center justify-center gap-1.5 shadow-lg shadow-white/5 cursor-pointer text-xs min-h-[38px]"
+                    >
+                      下一场实战对抗
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+
+                {/* Option list */}
+                <div className="space-y-3 pt-1">
+                  <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider text-left font-sans">
+                    {isAnswered ? "决策对账单:" : "请给出你的交易决策预案:"}
+                  </p>
                   
-                  {/* Option A: LONG */}
+                  {/* Option A: LONG (Green theme / Emerald) */}
                   <button 
                     onClick={() => handleAnswerSubmit("LONG")}
                     disabled={isAnswered}
-                    className={`w-full rounded-none border text-left flex items-center justify-between transition-all cursor-pointer ${
+                    className={`w-full rounded-2xl border text-left flex items-center gap-3.5 transition-all duration-300 relative overflow-hidden ${
                       isAnswered
-                        ? `py-2 px-3 ${
-                          correctAns === "LONG"
-                            ? "bg-[#00c805]/10 border-[#00c805] text-[#00c805]"
-                            : selectedOption === "LONG"
-                              ? "bg-[#ff3b30]/10 border-[#ff3b30] text-[#ff3b30]"
-                              : "bg-transparent border-neutral-900 text-slate-600"
-                        }`
-                        : "p-3.5 bg-black border-neutral-800 hover:border-white hover:bg-neutral-900 text-slate-200"
+                        ? correctAns === "LONG"
+                          ? "p-4 bg-emerald-950/20 border-emerald-500/30 text-emerald-400"
+                          : selectedOption === "LONG"
+                            ? "p-4 bg-rose-950/15 border-rose-500/30 text-rose-400"
+                            : "p-4 bg-transparent border-neutral-900 text-neutral-600 opacity-30"
+                        : "p-4 bg-[#050507] border-neutral-900 hover:border-emerald-500/40 hover:bg-emerald-950/5 text-neutral-200 cursor-pointer group hover:scale-[1.01] shadow-sm hover:shadow-md"
                     }`}
                   >
-                    <div className="flex flex-col pr-2">
-                      <span className="text-xs font-bold">突破多单 (Long Breakout)</span>
-                      {!isAnswered && <span className="text-[10px] opacity-75 mt-0.5 text-slate-400">在信号 K 线高点上方挂多单，预判上涨。</span>}
+                    <div className={`p-2.5 rounded-xl border shrink-0 transition-colors duration-200 ${
+                      isAnswered && correctAns === "LONG"
+                        ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+                        : isAnswered && selectedOption === "LONG" && correctAns !== "LONG"
+                          ? "bg-rose-500/10 border-rose-500/20 text-rose-400"
+                          : "bg-neutral-950/80 border-neutral-800 group-hover:border-emerald-500/30 group-hover:text-emerald-400 text-neutral-400"
+                    }`}>
+                      <TrendingUp className="w-4 h-4" />
                     </div>
-                    {isAnswered && correctAns === "LONG" && <Check className="w-4 h-4 text-[#00c805] shrink-0" />}
-                    {isAnswered && selectedOption === "LONG" && correctAns !== "LONG" && <X className="w-4 h-4 text-[#ff3b30] shrink-0" />}
+                    <div className="flex-1 min-w-0 text-left">
+                      <h5 className="text-xs sm:text-sm font-black tracking-wide text-white">突破多单 (Long Breakout)</h5>
+                      <p className={`text-[10px] mt-0.5 leading-relaxed truncate ${
+                        isAnswered && correctAns === "LONG" ? "text-emerald-400/70" : "text-neutral-500"
+                      }`}>
+                        在信号 K 线最高点上方挂多单，预计上涨。
+                      </p>
+                    </div>
+                    {isAnswered && correctAns === "LONG" && <Check className="w-4.5 h-4.5 text-emerald-400 shrink-0" />}
+                    {isAnswered && selectedOption === "LONG" && correctAns !== "LONG" && <X className="w-4.5 h-4.5 text-rose-400 shrink-0" />}
                   </button>
 
-                  {/* Option B: SHORT */}
+                  {/* Option B: SHORT (Red theme / Rose) */}
                   <button
                     onClick={() => handleAnswerSubmit("SHORT")}
                     disabled={isAnswered}
-                    className={`w-full rounded-none border text-left flex items-center justify-between transition-all cursor-pointer ${
+                    className={`w-full rounded-2xl border text-left flex items-center gap-3.5 transition-all duration-300 relative overflow-hidden ${
                       isAnswered
-                        ? `py-2 px-3 ${
-                          correctAns === "SHORT"
-                            ? "bg-[#00c805]/10 border-[#00c805] text-[#00c805]"
-                            : selectedOption === "SHORT"
-                              ? "bg-[#ff3b30]/10 border-[#ff3b30] text-[#ff3b30]"
-                              : "bg-transparent border-neutral-900 text-slate-600"
-                        }`
-                        : "p-3.5 bg-black border-neutral-800 hover:border-white hover:bg-neutral-900 text-slate-200"
+                        ? correctAns === "SHORT"
+                          ? "p-4 bg-emerald-950/20 border-emerald-500/30 text-emerald-400"
+                          : selectedOption === "SHORT"
+                            ? "p-4 bg-rose-950/15 border-rose-500/30 text-rose-400"
+                            : "p-4 bg-transparent border-neutral-900 text-neutral-600 opacity-30"
+                        : "p-4 bg-[#050507] border-neutral-900 hover:border-rose-500/40 hover:bg-rose-950/5 text-neutral-200 cursor-pointer group hover:scale-[1.01] shadow-sm hover:shadow-md"
                     }`}
                   >
-                    <div className="flex flex-col pr-2">
-                      <span className="text-xs font-bold">跌破空单 (Short Breakdown)</span>
-                      {!isAnswered && <span className="text-[10px] opacity-75 mt-0.5 text-slate-400">在信号 K 线低点下方挂空单，预判下行。</span>}
+                    <div className={`p-2.5 rounded-xl border shrink-0 transition-colors duration-200 ${
+                      isAnswered && correctAns === "SHORT"
+                        ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+                        : isAnswered && selectedOption === "SHORT" && correctAns !== "SHORT"
+                          ? "bg-rose-500/10 border-rose-500/20 text-rose-400"
+                          : "bg-neutral-950/80 border-neutral-800 group-hover:border-rose-500/30 group-hover:text-rose-400 text-neutral-400"
+                    }`}>
+                      <TrendingDown className="w-4 h-4" />
                     </div>
-                    {isAnswered && correctAns === "SHORT" && <Check className="w-4 h-4 text-[#00c805] shrink-0" />}
-                    {isAnswered && selectedOption === "SHORT" && correctAns !== "SHORT" && <X className="w-4 h-4 text-[#ff3b30] shrink-0" />}
+                    <div className="flex-1 min-w-0 text-left">
+                      <h5 className="text-xs sm:text-sm font-black tracking-wide text-white">跌破空单 (Short Breakdown)</h5>
+                      <p className={`text-[10px] mt-0.5 leading-relaxed truncate ${
+                        isAnswered && correctAns === "SHORT" ? "text-emerald-400/70" : "text-neutral-500"
+                      }`}>
+                        在信号 K 线最低点下方挂空单，预计下行。
+                      </p>
+                    </div>
+                    {isAnswered && correctAns === "SHORT" && <Check className="w-4.5 h-4.5 text-emerald-400 shrink-0" />}
+                    {isAnswered && selectedOption === "SHORT" && correctAns !== "SHORT" && <X className="w-4.5 h-4.5 text-rose-400 shrink-0" />}
                   </button>
 
-                  {/* Option C: SKIP */}
+                  {/* Option C: SKIP (Neutral theme / Slate Blue) */}
                   <button
                     onClick={() => handleAnswerSubmit("SKIP")}
                     disabled={isAnswered}
-                    className={`w-full rounded-none border text-left flex items-center justify-between transition-all cursor-pointer ${
+                    className={`w-full rounded-2xl border text-left flex items-center gap-3.5 transition-all duration-300 relative overflow-hidden ${
                       isAnswered
-                        ? `py-2 px-3 ${
-                          selectedOption === "SKIP"
-                            ? "bg-neutral-900/40 border-neutral-700 text-slate-400"
-                            : "bg-transparent border-neutral-900 text-slate-600"
-                        }`
-                        : "p-3.5 bg-black border-neutral-800 hover:border-white hover:bg-neutral-900 text-slate-400 hover:text-slate-200"
+                        ? selectedOption === "SKIP"
+                          ? "p-4 bg-neutral-900/40 border-neutral-800 text-slate-400"
+                          : "p-4 bg-transparent border-neutral-900 text-neutral-600 opacity-30"
+                        : "p-4 bg-[#050507] border-neutral-900 hover:border-slate-500/45 hover:bg-slate-950/10 text-neutral-200 cursor-pointer group hover:scale-[1.01] shadow-sm hover:shadow-md"
                     }`}
                   >
-                    <div className="flex flex-col pr-2">
-                      <span className="text-xs font-bold">空仓观望 / 不确定 (Stay Cash)</span>
-                      {!isAnswered && <span className="text-[10px] opacity-75 mt-0.5 text-slate-500">不确定未来方向，选择跳过此信号。不计入胜率。</span>}
+                    <div className={`p-2.5 rounded-xl border shrink-0 transition-colors duration-200 ${
+                      isAnswered && selectedOption === "SKIP"
+                        ? "bg-neutral-800 border-neutral-700 text-slate-300"
+                        : "bg-neutral-950/80 border-neutral-800 group-hover:border-slate-500/30 group-hover:text-slate-300 text-neutral-400"
+                    }`}>
+                      <Coins className="w-4 h-4" />
+                    </div>
+                    <div className="flex-1 min-w-0 text-left">
+                      <h5 className="text-xs sm:text-sm font-black tracking-wide text-white">空仓观望 / 不确定 (Stay Cash)</h5>
+                      <p className="text-[10px] mt-0.5 text-neutral-500 leading-relaxed truncate">
+                        不确定未来方向，选择跳过此信号。不计入胜率。
+                      </p>
                     </div>
                     {isAnswered && selectedOption === "SKIP" && <Eye className="w-4 h-4 text-slate-400 shrink-0" />}
                   </button>
@@ -585,87 +659,22 @@ export default function ChallengeMode({ candles, patterns, zones, trend, isChine
             )}
           </div>
 
-          {/* Bottom Dynamic Status & Next Question */}
-          <div className="mt-5 pt-3.5 border-t border-neutral-800">
-            {isAnswered ? (
-              <div className="space-y-3.5 animate-fade-in text-left">
-                {/* Flat, cohesive results ribbon */}
-                <div className={`p-3 rounded-none border flex items-start gap-2.5 ${
-                  selectedOption === "SKIP"
-                    ? "bg-neutral-900/60 border-neutral-700 text-slate-300"
-                    : selectedOption === correctAns 
-                      ? "bg-[#00c805]/5 border-[#00c805] text-[#00c805]" 
-                      : "bg-[#ff3b30]/5 border-[#ff3b30] text-[#ff3b30]"
-                }`}>
-                  {selectedOption === "SKIP" ? (
-                    <Eye className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
-                  ) : selectedOption === correctAns ? (
-                    <Check className="w-4 h-4 text-[#00c805] shrink-0 mt-0.5" />
-                  ) : (
-                    <X className="w-4 h-4 text-[#ff3b30] shrink-0 mt-0.5" />
-                  )}
-                  <div>
-                    <h5 className="text-xs font-bold">
-                      {selectedOption === "SKIP" 
-                        ? "选择空仓观望（不计入总胜率）" 
-                        : selectedOption === correctAns 
-                          ? "决策完美！预案符合真实走向" 
-                          : "判断偏差！市场做出了相反的选择"}
-                    </h5>
-                    <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
-                      {selectedOption === "SKIP"
-                        ? `本次待定。真实突破方向为：${correctAns === "LONG" ? "突破多单 (Long Breakout)" : "跌破空单 (Short Breakdown)"}。`
-                        : "真实后续行情已拉出，可以通过左侧图表复盘走位。"}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Primary CTA (Next Challenge) button - Placed immediately below the results for high visibility */}
-                <button
-                  onClick={() => {
-                    // Pick a random pattern from currently filtered category, or all
-                    const matched = sortedPatterns.filter(p => {
-                      if (selectedCategory === "ALL") return true;
-                      if (selectedCategory === "PIN_BAR") return p.type.includes("PIN_BAR");
-                      if (selectedCategory === "ENGULFING") return p.type.includes("ENGULFING");
-                      if (selectedCategory === "DOUBLE") return p.type.includes("DOUBLE");
-                      if (selectedCategory === "HEAD_AND_SHOULDERS") return p.type.includes("HEAD_AND_SHOULDERS") || p.type.includes("STAR");
-                      return false;
-                    });
-                    if (matched.length > 0) {
-                      const rand = matched[Math.floor(Math.random() * matched.length)];
-                      selectPatternForChallenge(rand);
-                    } else {
-                      setupNewChallenge(false);
-                    }
-                  }}
-                  className="w-full py-2 px-4 rounded-md bg-white hover:bg-neutral-200 text-black font-black transition-all flex items-center justify-center gap-1.5 shadow-lg shadow-white/5 cursor-pointer text-xs min-h-[38px]"
-                >
-                  下一场实战对抗
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-
-                {/* Secondary Commentary - Clean, compact bottom section */}
-                <div className="p-2.5 bg-neutral-900/30 border border-neutral-900 rounded-none text-left font-mono">
-                  <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">微观博弈机制 (Order Flow):</p>
-                  <p className="text-[10px] text-slate-400 mt-1 leading-normal font-sans">
-                    {correctAns === "LONG" 
-                      ? "看涨结构：信号 K 线下方堆积大额被动买单（表现为下影线或阳线吞没），空方深砸无果。当价格向上刺穿信号 K 线高点时，空头止损买单（Buy Stops）与多头破位追多单合流，形成动能喷发。"
-                      : "看跌结构：高位主动卖单不断蚕食多头买盘。当价格跌破信号 K 线低点时，瞬间触发密集的追高多头平仓卖单与多米诺骨牌式的多头保护性止损，从而诱发急剧下行。"}
-                  </p>
-                </div>
+          {/* Bottom Commentary Area */}
+          {isAnswered && activePattern && (
+            <div className="mt-4 pt-4 border-t border-neutral-900 animate-fade-in text-left">
+              <div className="p-3.5 bg-neutral-950/60 border border-neutral-900/80 rounded-2xl">
+                <p className="text-[9px] text-neutral-500 font-bold uppercase tracking-wider font-sans">微观博弈机制 (Order Flow):</p>
+                <p className="text-[10px] text-neutral-400 mt-1.5 leading-relaxed font-sans font-medium">
+                  {correctAns === "LONG" 
+                    ? "看涨结构：信号 K 线下方买盘托底，空方压制无力。一旦突破高点，大量空头止损买单与多头追涨盘交织，爆发上涨行情。"
+                    : "看跌结构：高位抛压明显，多头无意接盘。一旦跌破最低点，大批多头止损盘与市场抢跑单齐出，助推价格快速下坠。"}
+                </p>
               </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center text-center py-6 text-slate-500 font-mono">
-                <Eye className="w-6 h-6 text-slate-700 mb-2 animate-pulse" />
-                <p className="text-[11px]">请在上方做出你的交易决策</p>
-              </div>
-            )}
-          </div>
+            </div>
+          )}
 
         </div>
       </div>
-
     </div>
   );
 }

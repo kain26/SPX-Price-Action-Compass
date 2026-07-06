@@ -12,7 +12,10 @@ import {
   Filter,
   Check,
   Info,
-  ChevronRight
+  ChevronRight,
+  ArrowUp,
+  ArrowDown,
+  ArrowLeftRight
 } from "lucide-react";
 import DiagnosticModal from "./DiagnosticModal.tsx";
 
@@ -44,6 +47,9 @@ interface PatternListProps {
   timeframe?: string;
   candles?: any[];
   isChineseStyle?: boolean;
+  quizScore: { wins: number; total: number };
+  setQuizScore: React.Dispatch<React.SetStateAction<{ wins: number; total: number }>>;
+  setActiveTab: (tab: "review" | "challenge") => void;
 }
 
 // Convert structure types into clinical, standard quantitative jargon
@@ -87,6 +93,9 @@ export default function PatternList({
   timeframe,
   candles,
   isChineseStyle,
+  quizScore,
+  setQuizScore,
+  setActiveTab,
 }: PatternListProps) {
   
   const [showAllBehaviors, setShowAllBehaviors] = useState(false);
@@ -116,65 +125,305 @@ export default function PatternList({
           }
         };
         const zoneMeta = getZonePeriodLabel();
+        const maxStrength = zones.length > 0 ? Math.max(...zones.map(z => z.strength), 6) : 6;
 
         return (
-          <div className="bg-black border border-neutral-800 rounded-none p-3 sm:p-5 shadow-2xl text-left transition-all relative">
-            <h4 className="text-[10px] sm:text-xs font-semibold text-slate-100 mb-2 flex items-center justify-between">
-              <span className="flex items-center gap-1 sm:gap-1.5 text-white font-medium tracking-widest font-mono uppercase">
-                <Layers className="w-3 sm:w-3.5 h-3 sm:h-3.5 text-white" />
-                支撑与阻力
+          <div className="bg-[#050507] border border-neutral-900 rounded-2xl p-4 sm:p-5 shadow-[0_4px_30px_rgba(0,0,0,0.4)] text-left relative overflow-hidden">
+            {/* Background glowing effects for premium look */}
+            <div className="absolute top-0 left-1/4 w-1/2 h-[1px] bg-gradient-to-r from-transparent via-neutral-700 to-transparent opacity-60" />
+
+            <h4 className="text-xs sm:text-sm font-bold text-white mb-3 sm:mb-4 flex items-center justify-between">
+              <span className="flex items-center gap-2 text-white font-space uppercase tracking-wider">
+                {/* Custom candlestick icon for visual distinction */}
+                <div className="flex items-center gap-[3px] shrink-0 select-none">
+                  <div className="w-[3.5px] h-3.5 bg-white/20 relative flex items-center justify-center">
+                    <div className="w-[7.5px] h-1.5 bg-[#00c805] absolute" />
+                  </div>
+                  <div className="w-[3.5px] h-3.5 bg-white/20 relative flex items-center justify-center">
+                    <div className="w-[7.5px] h-2.5 bg-[#ff3b30] absolute" />
+                  </div>
+                </div>
+                支撑与压力
               </span>
               
               {/* Hoverable Information Tag */}
               <div className="relative group/tag">
-                <span className="text-[8px] sm:text-[9px] bg-neutral-900 text-white px-1.5 sm:px-2 py-0.5 rounded-none font-mono border border-neutral-700 font-bold flex items-center gap-0.5 sm:gap-1 cursor-help">
+                <span className="text-[10px] sm:text-xs bg-teal-950/45 border border-teal-500/60 shadow-[0_0_12px_rgba(20,184,166,0.15)] text-teal-300 px-2.5 py-1 rounded-full font-bold flex items-center gap-1 cursor-help tracking-wide transition-all hover:bg-teal-900/60">
                   {zoneMeta.tag}
-                  <Info className="w-2 h-2 sm:w-2.5 sm:h-2.5 text-white" />
+                  <Info className="w-3 h-3 text-teal-300" />
                 </span>
                 
                 {/* Tooltip on Hover */}
-                <div className="absolute right-0 top-full mt-1.5 w-60 p-2.5 bg-[#08090d] border border-neutral-700 text-[10px] text-slate-300 rounded-none shadow-2xl z-50 pointer-events-none opacity-0 group-hover/tag:opacity-100 transition-opacity duration-200 leading-normal">
+                <div className="absolute right-0 top-full mt-2 w-64 p-3 bg-[#0a0a0f] border border-neutral-800 text-[11px] text-neutral-300 rounded-xl shadow-2xl z-50 pointer-events-none opacity-0 group-hover/tag:opacity-100 transition-opacity duration-200 leading-relaxed font-sans">
                   {zoneMeta.desc}
                 </div>
               </div>
             </h4>
 
-            <div className="grid grid-cols-2 gap-1.5 sm:gap-2 mt-2 sm:mt-4">
+            <div className="grid grid-cols-2 gap-3 mt-2 sm:mt-4">
               {zones.length === 0 ? (
-                <p className="col-span-2 text-[10px] text-slate-500 text-center py-4 font-mono">
+                <div className="col-span-2 text-[11px] text-neutral-400 text-center py-6 font-mono border border-dashed border-neutral-800 rounded-xl bg-neutral-900/10">
                   暂未检测到筹码共识关键位，平移图表即可触发计算
-                </p>
+                </div>
               ) : (
-                zones.slice(0, 4).map(z => {
-                  const isSupport = z.type === "support";
-                  const isResistance = z.type === "resistance";
-                  return (
-                    <div
-                      key={z.id}
-                      className={`p-1.5 sm:p-3 rounded-none border text-center transition-all ${
-                        isSupport
-                          ? "bg-black border-[#00c805] text-[#00c805] shadow-sm"
-                          : isResistance
-                            ? "bg-black border-[#ff3b30] text-[#ff3b30] shadow-sm"
-                            : "bg-black border-neutral-800 text-slate-200"
-                      }`}
-                    >
-                      <p className="text-[7px] sm:text-[8px] text-slate-400 uppercase font-bold tracking-wider font-mono">
-                        {z.type === "flip" ? "多空互换" : z.type === "support" ? "买方支撑" : "卖方阻力"}
-                      </p>
-                      <h5 className="text-[10px] sm:text-xs font-mono font-bold mt-0.5 sm:mt-1 text-white">${z.price}</h5>
-                      <p className="text-[7px] sm:text-[8px] text-slate-400 font-mono mt-0.5 opacity-80">
-                        共识: {z.strength}次
-                      </p>
-                    </div>
+                (() => {
+                  // Put first resistance in Top-Left (slot 0), first support in Bottom-Left (slot 2)
+                  const firstResistance = zones.find(z => z.type === "resistance");
+                  const firstSupport = zones.find(z => z.type === "support");
+                  
+                  const remaining = zones.filter(
+                    z => z.id !== firstResistance?.id && z.id !== firstSupport?.id
                   );
-                })
+
+                  let rIdx = 0;
+                  const slot0 = firstResistance || remaining[rIdx++];
+                  const slot1 = remaining[rIdx++];
+                  const slot2 = firstSupport || remaining[rIdx++];
+                  const slot3 = remaining[rIdx++];
+
+                  const orderedGrid = [slot0, slot1, slot2, slot3].filter((item): item is typeof zones[0] => !!item);
+
+                  return orderedGrid.map(z => {
+                    const isSupport = z.type === "support";
+                    const isResistance = z.type === "resistance";
+                    const isFlip = z.type === "flip" || (!isSupport && !isResistance);
+                    
+                    // Progress width percentage
+                    const progressWidthPct = Math.min((z.strength / maxStrength) * 100, 100);
+
+                    // Setup specific styles
+                    let bgClass = "bg-cyan-50/95";
+                    let textAccentClass = "text-cyan-700";
+                    let priceColorClass = "text-cyan-800";
+                    let fillBarClass = "bg-cyan-600";
+                    let trackBarClass = "bg-cyan-100";
+                    let titleText = "多空互换";
+                    let iconElement = <ArrowLeftRight className="w-3.5 h-3.5 text-cyan-600 shrink-0" strokeWidth={3} />;
+
+                    if (isSupport) {
+                      bgClass = "bg-emerald-50/95";
+                      textAccentClass = "text-emerald-700";
+                      priceColorClass = "text-emerald-800";
+                      fillBarClass = "bg-emerald-600";
+                      trackBarClass = "bg-emerald-100";
+                      titleText = "买方支撑";
+                      iconElement = <ArrowUp className="w-3.5 h-3.5 text-emerald-600 shrink-0" strokeWidth={3} />;
+                    } else if (isResistance) {
+                      bgClass = "bg-rose-50/95";
+                      textAccentClass = "text-rose-700";
+                      priceColorClass = "text-rose-800";
+                      fillBarClass = "bg-rose-600";
+                      trackBarClass = "bg-rose-100";
+                      titleText = "卖方压力";
+                      iconElement = <ArrowDown className="w-3.5 h-3.5 text-rose-600 shrink-0" strokeWidth={3} />;
+                    }
+
+                    return (
+                      <div
+                        key={z.id}
+                        className={`p-3.5 rounded-2xl ${bgClass} text-left flex flex-col justify-between shadow-[0_8px_20px_rgba(0,0,0,0.12)] border border-white/40 transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_12px_24px_rgba(255,255,255,0.05)]`}
+                      >
+                        <div>
+                          {/* Header with Icon and Label */}
+                          <div className="flex items-center gap-1.5 mb-1.5">
+                            {iconElement}
+                            <span className="text-[11px] sm:text-xs font-black font-sans tracking-wide text-neutral-800 uppercase">
+                              {titleText}
+                            </span>
+                          </div>
+
+                          {/* Price display - extremely bold and high recognition */}
+                          <h5 className={`text-base sm:text-2xl font-mono font-black tracking-tight ${priceColorClass}`}>
+                            ${z.price.toFixed(2)}
+                          </h5>
+                        </div>
+
+                        {/* Consensus times and elegant progress bar */}
+                        <div className="mt-2">
+                          <div className="flex items-center justify-between text-[10px] sm:text-xs font-bold font-sans text-neutral-600 mb-1">
+                            <span>共识: {z.strength}次</span>
+                            <span>{Math.round(progressWidthPct)}%</span>
+                          </div>
+                          <div className={`h-1.5 w-full ${trackBarClass} rounded-full overflow-hidden`}>
+                            <div
+                              className={`h-full ${fillBarClass} rounded-full transition-all duration-500`}
+                              style={{ width: `${progressWidthPct}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  });
+                })()
               )}
             </div>
           </div>
         );
       })()}
 
+      {/* 2. Active Focus Pattern Banner (Moved from main chart column to here) */}
+      {(() => {
+        if (!activeFocus) return null;
+
+        const displayLabel = getPatternDisplayLabel(activeFocus.type, activeFocus.name);
+
+        const isBullish = activeFocus.type.includes("BULLISH") || 
+                          activeFocus.type.includes("BOTTOM") || 
+                          activeFocus.type === "MORNING_STAR" ||
+                          activeFocus.type.includes("ASCENDING");
+
+        const isBearish = activeFocus.type.includes("BEARISH") || 
+                          activeFocus.type.includes("TOP") || 
+                          activeFocus.type === "EVENING_STAR" ||
+                          activeFocus.type === "HEAD_AND_SHOULDERS" ||
+                          activeFocus.type.includes("DESCENDING");
+
+        const upColor = isChineseStyle ? "#ff3b30" : "#00c805";
+        const downColor = isChineseStyle ? "#00c805" : "#ff3b30";
+
+        const activeColor = isBullish ? upColor : isBearish ? downColor : "#06b6d4";
+        const activeColorBg = isBullish 
+          ? (isChineseStyle ? "bg-rose-950/20" : "bg-emerald-950/20") 
+          : isBearish 
+            ? (isChineseStyle ? "bg-emerald-950/20" : "bg-rose-950/20") 
+            : "bg-cyan-950/20";
+        const activeColorBorder = isBullish 
+          ? (isChineseStyle ? "border-rose-900/50" : "border-emerald-900/50") 
+          : isBearish 
+            ? (isChineseStyle ? "border-emerald-900/50" : "border-rose-900/50") 
+            : "border-cyan-900/50";
+        const activeTextColor = isBullish 
+          ? (isChineseStyle ? "text-rose-400" : "text-emerald-400") 
+          : isBearish 
+            ? (isChineseStyle ? "text-emerald-400" : "text-rose-400") 
+            : "text-cyan-400";
+
+        return (
+          <>
+            <button
+              onClick={() => setShowLocalDiag(true)}
+              className={`w-full text-left p-4 rounded-2xl bg-[#050507] border border-neutral-900 ${activeColorBg} ${activeColorBorder} shadow-[0_4px_24px_rgba(0,0,0,0.3)] transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_12px_24px_rgba(255,255,255,0.02)] cursor-pointer group relative overflow-hidden`}
+              style={{ borderLeft: `4px solid ${activeColor}` }}
+            >
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-2 text-xs sm:text-sm font-bold text-white font-space">
+                    <span className="flex h-2.5 w-2.5 rounded-full animate-pulse shrink-0" style={{ backgroundColor: activeColor }} />
+                    形态识别
+                  </span>
+                  
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${activeTextColor} border border-current/20 font-space bg-black/40`}>
+                    ACTIVE
+                  </span>
+                </div>
+
+                <h4 className="text-sm sm:text-base font-black text-white font-sans tracking-wide">
+                  {displayLabel}
+                </h4>
+
+                <div className="flex items-center gap-3.5 text-xs text-neutral-400 font-mono mt-0.5">
+                  <div className="flex flex-col">
+                    <span className="text-[9px] text-neutral-500 uppercase tracking-wider">置信度</span>
+                    <span className="text-amber-500 font-bold">{Math.round(activeFocus.confidence * 100)}%</span>
+                  </div>
+                  <div className="h-6 w-[1px] bg-neutral-800" />
+                  <div className="flex flex-col">
+                    <span className="text-[9px] text-neutral-500 uppercase tracking-wider">参考价</span>
+                    <span className="text-neutral-200 font-bold">${activeFocus.price.toFixed(2)}</span>
+                  </div>
+                </div>
+
+                <div className="mt-2 pt-2 border-t border-neutral-900/60 flex items-center justify-between text-xs font-bold text-white/80 group-hover:text-white transition-colors">
+                  <span className="text-[11px] tracking-wide">查看形态详解与操作指南</span>
+                  <ChevronRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-1" style={{ color: activeColor }} />
+                </div>
+              </div>
+            </button>
+
+            {showLocalDiag && (
+              <DiagnosticModal
+                pattern={activeFocus}
+                onClose={() => setShowLocalDiag(false)}
+                candles={candles}
+                isChineseStyle={isChineseStyle}
+              />
+            )}
+          </>
+        );
+      })()}
+
+      {/* 2.5. Challenge Mode Quick Access Card (User Request: "把这个放在右边，支持阻力下面") */}
+      {(() => {
+        const winPercent = quizScore.total > 0 ? Math.round((quizScore.wins / quizScore.total) * 100) : 0;
+        const radius = 16;
+        const circumference = 2 * Math.PI * radius;
+        const strokeDashoffset = circumference - (winPercent / 100) * circumference;
+
+        return (
+          <button
+            onClick={() => setActiveTab("challenge")}
+            className="w-full text-left p-4 rounded-2xl bg-[#050507] border border-neutral-900 shadow-[0_4px_24px_rgba(0,0,0,0.3)] transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_12px_24px_rgba(255,255,255,0.02)] cursor-pointer group relative overflow-hidden flex items-center justify-between gap-3"
+          >
+            {/* Ambient Background Glow */}
+            <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/5 rounded-full blur-2xl pointer-events-none" />
+
+            <div className="flex-1 min-w-0">
+              <span className="flex items-center gap-1.5 text-xs font-bold text-white font-space uppercase tracking-wider mb-1">
+                <div className="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse" />
+                裸K实战对抗
+              </span>
+              <p className="text-[11px] text-neutral-400 leading-relaxed font-sans pr-1">
+                屏蔽形态信号右侧 K 线，研判下一步发力方向
+              </p>
+              
+              <div className="mt-2.5 flex items-center gap-1 text-[10px] font-bold text-cyan-400 uppercase tracking-wide group-hover:text-cyan-300 transition-colors">
+                <span>进入实战模拟</span>
+                <ChevronRight className="w-3.5 h-3.5 transition-transform duration-200 group-hover:translate-x-1" />
+              </div>
+            </div>
+
+            {/* Circular Winrate Stat Dial */}
+            <div className="flex items-center gap-3 bg-neutral-950/60 border border-neutral-900 px-3 py-2 rounded-xl shrink-0">
+              <div className="relative w-10 h-10 flex items-center justify-center shrink-0">
+                <svg className="w-10 h-10 transform -rotate-90">
+                  {/* Background Track */}
+                  <circle
+                    cx="20"
+                    cy="20"
+                    r={radius}
+                    stroke="rgba(255,255,255,0.03)"
+                    strokeWidth="3"
+                    fill="transparent"
+                  />
+                  {/* Glowing Colored Indicator */}
+                  <circle
+                    cx="20"
+                    cy="20"
+                    r={radius}
+                    stroke="#06b6d4"
+                    strokeWidth="3"
+                    fill="transparent"
+                    strokeDasharray={circumference}
+                    strokeDashoffset={strokeDashoffset}
+                    strokeLinecap="round"
+                    className="transition-all duration-1000 ease-out"
+                  />
+                </svg>
+                <span className="absolute text-[10px] font-black font-mono text-white">
+                  {winPercent}%
+                </span>
+              </div>
+
+              <div className="flex flex-col text-left justify-center select-none shrink-0">
+                <span className="text-[8px] sm:text-[9px] text-neutral-500 font-bold uppercase tracking-wider">胜率得分</span>
+                <span className="text-xs sm:text-xs font-black font-mono text-white tracking-wide mt-0.5">
+                  {quizScore.wins} <span className="text-neutral-600 font-normal">/</span> {quizScore.total}
+                </span>
+              </div>
+            </div>
+          </button>
+        );
+      })()}
 
 
       {/* 3. Detected Pattern Waves */}

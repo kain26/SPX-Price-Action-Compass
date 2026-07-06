@@ -165,20 +165,31 @@ app.get("/api/spx-data", async (req, res) => {
 
     const candles = caches[timeframe] || [];
 
-    // Filter up to T-1 day by default (exclude today's New York date)
+    // Filter up to T-1 day by default (exclude today's New York date) if market is open or recently closed.
+    // Once the market has been closed for more than 15 minutes (after 16:15 NY time) or on weekends, we allow showing today's (T-0) data.
     const nyTimeStr = new Date().toLocaleString("en-US", { timeZone: "America/New_York" });
     const nowNY = new Date(nyTimeStr);
     const todayNYFormatted = `${nowNY.getFullYear()}-${String(nowNY.getMonth() + 1).padStart(2, "0")}-${String(nowNY.getDate()).padStart(2, "0")}`;
 
-    const upToTMinus1Candles = candles.filter(c => {
-      if (!c || typeof c.time !== "number") return false;
-      const candleNYStr = new Date(c.time).toLocaleString("en-US", { timeZone: "America/New_York" });
-      const candleNY = new Date(candleNYStr);
-      const candleNYFormatted = `${candleNY.getFullYear()}-${String(candleNY.getMonth() + 1).padStart(2, "0")}-${String(candleNY.getDate()).padStart(2, "0")}`;
-      return candleNYFormatted < todayNYFormatted;
-    });
+    const dayOfWeekNY = nowNY.getDay(); // 0 is Sunday, 6 is Saturday
+    const hoursNY = nowNY.getHours();
+    const minutesNY = nowNY.getMinutes();
 
-    const finalCandles = upToTMinus1Candles.length > 0 ? upToTMinus1Candles : candles;
+    const isWeekend = dayOfWeekNY === 0 || dayOfWeekNY === 6;
+    const isPastMarketClosePlus15 = hoursNY > 16 || (hoursNY === 16 && minutesNY >= 15);
+    const allowToday = isWeekend || isPastMarketClosePlus15;
+
+    let finalCandles = candles;
+    if (!allowToday) {
+      const upToTMinus1Candles = candles.filter(c => {
+        if (!c || typeof c.time !== "number") return false;
+        const candleNYStr = new Date(c.time).toLocaleString("en-US", { timeZone: "America/New_York" });
+        const candleNY = new Date(candleNYStr);
+        const candleNYFormatted = `${candleNY.getFullYear()}-${String(candleNY.getMonth() + 1).padStart(2, "0")}-${String(candleNY.getDate()).padStart(2, "0")}`;
+        return candleNYFormatted < todayNYFormatted;
+      });
+      finalCandles = upToTMinus1Candles.length > 0 ? upToTMinus1Candles : candles;
+    }
     let filtered: Candle[] = [];
 
     // If we are looking for a specific day's 5m intraday chart
@@ -246,12 +257,39 @@ app.get("/api/spx-data", async (req, res) => {
     const { highs: zoneHighs, lows: zoneLows } = findSwingPoints(finalZonesCandles, swingStrength, swingStrength);
     const zones = detectSupportResistanceZones(finalZonesCandles, zoneHighs, zoneLows, tolerancePercent);
 
+    // Find dailyPreviousClose from caches["1d"] to provide exact 100% correct daily price change ratio
+    let dailyPreviousClose = 0;
+    if (filtered.length > 0) {
+      const latestCandle = filtered[filtered.length - 1];
+      try {
+        const latestNYStr = new Date(latestCandle.time).toLocaleString("en-US", { timeZone: "America/New_York" });
+        const latestNY = new Date(latestNYStr);
+        const latestDateFormatted = `${latestNY.getFullYear()}-${String(latestNY.getMonth() + 1).padStart(2, "0")}-${String(latestNY.getDate()).padStart(2, "0")}`;
+
+        const dailyCandles = caches["1d"] || [];
+        for (let i = dailyCandles.length - 1; i >= 0; i--) {
+          const d = dailyCandles[i];
+          const dNYStr = new Date(d.time).toLocaleString("en-US", { timeZone: "America/New_York" });
+          const dNY = new Date(dNYStr);
+          const dDateFormatted = `${dNY.getFullYear()}-${String(dNY.getMonth() + 1).padStart(2, "0")}-${String(dNY.getDate()).padStart(2, "0")}`;
+
+          if (dDateFormatted < latestDateFormatted) {
+            dailyPreviousClose = d.close;
+            break;
+          }
+        }
+      } catch (e) {
+        console.error("Error finding daily previous close on server:", e);
+      }
+    }
+
     res.json({
       candles: filtered,
       patterns,
       zones,
       trend,
       lastUpdated: new Date(lastSyncTimes[timeframe] || Date.now()).toISOString(),
+      dailyPreviousClose: dailyPreviousClose || undefined,
     });
   } catch (error: any) {
     console.error("[API Error] in /api/spx-data:", error);
