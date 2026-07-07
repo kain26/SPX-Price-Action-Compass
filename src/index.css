@@ -1,7 +1,9 @@
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import url('https://cdn.jsdelivr.net/npm/@chinese-font/misans/dist/MiSans-Regular/result.css');
 @import "tailwindcss";
 
 @theme {
-  --font-space: "Space Grotesk", sans-serif;
+  --font-sans: "MiSans", system-ui, -apple-system, sans-serif;
+  --font-space: "Space Grotesk", "MiSans", sans-serif;
 }
 
