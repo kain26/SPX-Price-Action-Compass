@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://spx-price-action-compass-773950940183.europe-west2.run.app/sitemap.xml
