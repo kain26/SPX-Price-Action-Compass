@@ -3,8 +3,17 @@ import { Candle } from "../types.js";
 /**
  * Fetches the latest SPX candles from Yahoo Finance for any generic interval and range.
  */
-export async function fetchYahooFinanceSPXGeneric(interval: "1m" | "5m" | "15m" | "1h" | "1d", range: string): Promise<Candle[]> {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/%5EGSPC?interval=${interval}&range=${range}`;
+export async function fetchYahooFinanceSPXGeneric(interval: "1m" | "5m" | "15m" | "1h" | "1d", range: string, symbol: string = "spx"): Promise<Candle[]> {
+  let ticker = "^GSPC";
+  const symLower = symbol.toLowerCase();
+  if (symLower === "es") {
+    ticker = "ES=F";
+  } else if (symLower === "qqq") {
+    ticker = "QQQ";
+  } else if (symLower === "spy") {
+    ticker = "SPY";
+  }
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=${interval}&range=${range}&includePrePost=true`;
   
   try {
     const controller = new AbortController();

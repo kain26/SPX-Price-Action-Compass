@@ -18,88 +18,168 @@ const DATA_DIR = path.join(process.cwd(), "data");
 const TIMEFRAMES = ["1m", "5m", "15m", "4h", "1d"] as const;
 type Timeframe = typeof TIMEFRAMES[number];
 
-const timeframeFiles: Record<Timeframe, string> = {
-  "1m": path.join(DATA_DIR, "spx_1m.json"),
-  "5m": path.join(DATA_DIR, "spx_5m.json"),
-  "15m": path.join(DATA_DIR, "spx_15m.json"),
-  "4h": path.join(DATA_DIR, "spx_4h.json"),
-  "1d": path.join(DATA_DIR, "spx_1d.json"),
+const SYMBOLS = ["spx", "es", "qqq", "spy"] as const;
+type SymbolType = typeof SYMBOLS[number];
+
+// Multi-symbol multi-timeframe caches
+let caches: Record<SymbolType, Record<Timeframe, Candle[]>> = {
+  spx: { "1m": [], "5m": [], "15m": [], "4h": [], "1d": [] },
+  es: { "1m": [], "5m": [], "15m": [], "4h": [], "1d": [] },
+  qqq: { "1m": [], "5m": [], "15m": [], "4h": [], "1d": [] },
+  spy: { "1m": [], "5m": [], "15m": [], "4h": [], "1d": [] },
 };
 
-let caches: Record<Timeframe, Candle[]> = {
-  "1m": [],
-  "5m": [],
-  "15m": [],
-  "4h": [],
-  "1d": [],
+let lastSyncTimes: Record<SymbolType, Record<Timeframe, number>> = {
+  spx: { "1m": 0, "5m": 0, "15m": 0, "4h": 0, "1d": 0 },
+  es: { "1m": 0, "5m": 0, "15m": 0, "4h": 0, "1d": 0 },
+  qqq: { "1m": 0, "5m": 0, "15m": 0, "4h": 0, "1d": 0 },
+  spy: { "1m": 0, "5m": 0, "15m": 0, "4h": 0, "1d": 0 },
 };
 
-let lastSyncTimes: Record<Timeframe, number> = {
-  "1m": 0,
-  "5m": 0,
-  "15m": 0,
-  "4h": 0,
-  "1d": 0,
-};
+// Helper: Determine if the US market/futures are currently active in New York Time
+function isSymbolActive(symbol: SymbolType): boolean {
+  try {
+    const nyTimeStr = new Date().toLocaleString("en-US", { timeZone: "America/New_York" });
+    const nyDate = new Date(nyTimeStr);
+    const day = nyDate.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    const hour = nyDate.getHours();
+    const minute = nyDate.getMinutes();
+
+    if (day === 0 || day === 6) {
+      // Weekends: ES opens Sunday at 18:00 NY time
+      if (symbol === "es" && day === 0 && hour >= 18) {
+        return true;
+      }
+      return false;
+    }
+
+    if (symbol === "es") {
+      // ES Futures: Continuous from Sunday 18:00 (6 PM) to Friday 17:00 (5 PM) NY time
+      if (day === 5) { // Friday
+        return hour < 17;
+      }
+      return true; // Monday to Thursday
+    } else if (symbol === "qqq" || symbol === "spy") {
+      // QQQ, SPY: Pre-market + Regular + Post-market (4:00 AM to 8:00 PM NY time)
+      return hour >= 4 && hour < 20;
+    } else {
+      // SPX: Cash Index (Regular hours only: 9:30 AM to 4:00 PM NY time)
+      const isRegularHours = (hour > 9 || (hour === 9 && minute >= 30)) && hour < 16;
+      return isRegularHours;
+    }
+  } catch (err) {
+    console.error("Error checking active status:", err);
+    return true; // Fallback to active
+  }
+}
+
+// Helper: Get adaptive cache TTL (Time To Live) in milliseconds based on symbol activity and timeframe
+function getSymbolTimeframeTTL(symbol: SymbolType, tf: Timeframe): number {
+  const isActive = isSymbolActive(symbol);
+  
+  if (isActive) {
+    if (tf === "1m" || tf === "5m" || tf === "15m") {
+      return 2 * 60 * 1000; // 2 minutes for highly-active intraday trading
+    }
+    return 30 * 60 * 1000; // 30 minutes for longer term charts (4h, 1d) during active hours
+  } else {
+    // Off-market hours: 1 hour cache is plenty to keep server resources calm while capturing late reporting
+    return 60 * 60 * 1000;
+  }
+}
+
+const VERSION_FILE = path.join(DATA_DIR, ".cache_version");
+const CURRENT_VERSION = "v2_prepost";
 
 function ensureDataFiles() {
   if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
   }
 
-  for (const tf of TIMEFRAMES) {
-    const filePath = timeframeFiles[tf];
-    if (fs.existsSync(filePath) && fs.readFileSync(filePath, "utf-8").trim() !== "") {
-      try {
-        caches[tf] = JSON.parse(fs.readFileSync(filePath, "utf-8"));
-        lastSyncTimes[tf] = Date.now() - 5 * 60 * 1000; // Assume fresh on load
-        console.log(`Loaded ${caches[tf].length} candles for timeframe: ${tf} from cache.`);
-      } catch (e) {
-        console.error(`Error loading cache for ${tf}, will fetch fresh...`, e);
+  let shouldReset = true;
+  if (fs.existsSync(VERSION_FILE)) {
+    const v = fs.readFileSync(VERSION_FILE, "utf-8").trim();
+    if (v === CURRENT_VERSION) {
+      shouldReset = false;
+    }
+  }
+
+  if (shouldReset) {
+    console.log("[Cache Reset] New cache version detected. Clearing old JSON caches to force fresh download with pre/post-market data...");
+    for (const sym of SYMBOLS) {
+      for (const tf of TIMEFRAMES) {
+        const filePath = path.join(DATA_DIR, `${sym}_${tf}.json`);
+        if (fs.existsSync(filePath)) {
+          try {
+            fs.unlinkSync(filePath);
+          } catch (err) {
+            console.error(`Error deleting old cache file ${filePath}:`, err);
+          }
+        }
+      }
+    }
+    fs.writeFileSync(VERSION_FILE, CURRENT_VERSION, "utf-8");
+  }
+
+  for (const sym of SYMBOLS) {
+    for (const tf of TIMEFRAMES) {
+      const filePath = path.join(DATA_DIR, `${sym}_${tf}.json`);
+      if (fs.existsSync(filePath) && fs.readFileSync(filePath, "utf-8").trim() !== "") {
+        try {
+          caches[sym][tf] = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+          lastSyncTimes[sym][tf] = Date.now() - 5 * 60 * 1000; // Assume fresh on load
+          console.log(`Loaded ${caches[sym][tf].length} candles for symbol ${sym} timeframe ${tf} from cache.`);
+        } catch (e) {
+          console.error(`Error loading cache for ${sym} ${tf}, will fetch fresh...`, e);
+        }
       }
     }
   }
 }
 
-// Sync single timeframe from Yahoo Finance
-async function syncTimeframe(tf: Timeframe) {
-  console.log(`[Sync] Fetching timeframe ${tf} from Yahoo Finance...`);
+// Sync single symbol & timeframe from Yahoo Finance
+async function syncTimeframe(sym: SymbolType, tf: Timeframe) {
+  console.log(`[Sync] Fetching symbol ${sym} timeframe ${tf} from Yahoo Finance...`);
+  // Mark as synced immediately to prevent overlapping concurrent fetches
+  lastSyncTimes[sym][tf] = Date.now();
   try {
     let fetched: Candle[] = [];
     if (tf === "1m") {
-      fetched = await fetchYahooFinanceSPXGeneric("1m", "7d");
+      fetched = await fetchYahooFinanceSPXGeneric("1m", "7d", sym);
     } else if (tf === "5m") {
-      fetched = await fetchYahooFinanceSPXGeneric("5m", "60d");
+      fetched = await fetchYahooFinanceSPXGeneric("5m", "60d", sym);
     } else if (tf === "15m") {
-      fetched = await fetchYahooFinanceSPXGeneric("15m", "60d");
+      fetched = await fetchYahooFinanceSPXGeneric("15m", "60d", sym);
     } else if (tf === "4h") {
       // Fetch 1h and aggregate to 4h
-      const hourly = await fetchYahooFinanceSPXGeneric("1h", "360d");
+      const hourly = await fetchYahooFinanceSPXGeneric("1h", "360d", sym);
       if (hourly.length > 0) {
         fetched = aggregate1HTo4H(hourly);
       }
     } else if (tf === "1d") {
-      fetched = await fetchYahooFinanceSPXGeneric("1d", "3y");
+      fetched = await fetchYahooFinanceSPXGeneric("1d", "3y", sym);
     }
 
     if (fetched.length > 0) {
-      caches[tf] = mergeCandles(caches[tf], fetched);
-      fs.writeFileSync(timeframeFiles[tf], JSON.stringify(caches[tf], null, 2), "utf-8");
-      lastSyncTimes[tf] = Date.now();
-      console.log(`[Sync] ${tf} sync complete. Total ${caches[tf].length} candles saved.`);
+      caches[sym][tf] = mergeCandles(caches[sym][tf], fetched);
+      const filePath = path.join(DATA_DIR, `${sym}_${tf}.json`);
+      fs.writeFileSync(filePath, JSON.stringify(caches[sym][tf], null, 2), "utf-8");
+      console.log(`[Sync] ${sym} ${tf} sync complete. Total ${caches[sym][tf].length} candles saved.`);
     } else {
-      console.log(`[Sync] Yahoo Finance returned 0 candles for ${tf}.`);
+      console.log(`[Sync] Yahoo Finance returned 0 candles for ${sym} ${tf}.`);
     }
   } catch (err) {
-    console.error(`[Sync] Failed to sync ${tf}:`, err);
+    console.error(`[Sync] Failed to sync ${sym} ${tf}:`, err);
   }
 }
 
-// Sync all timeframes sequentially
+// Sync all symbols and timeframes sequentially
 async function syncAllTimeframes() {
-  console.log("[Sync] Syncing all multi-timeframe caches...");
-  for (const tf of TIMEFRAMES) {
-    await syncTimeframe(tf);
+  console.log("[Sync] Syncing all symbols and multi-timeframe caches...");
+  for (const sym of SYMBOLS) {
+    for (const tf of TIMEFRAMES) {
+      await syncTimeframe(sym, tf);
+    }
   }
 }
 
@@ -108,9 +188,11 @@ ensureDataFiles();
 
 // Sync any missing caches on startup and run full background update
 async function initSync() {
-  for (const tf of TIMEFRAMES) {
-    if (caches[tf].length === 0) {
-      await syncTimeframe(tf);
+  for (const sym of SYMBOLS) {
+    for (const tf of TIMEFRAMES) {
+      if (caches[sym][tf].length === 0) {
+        await syncTimeframe(sym, tf);
+      }
     }
   }
   // Run background full sync
@@ -151,55 +233,71 @@ app.get("/api/spx-data", async (req, res) => {
   try {
     const timeframe = (req.query.timeframe as Timeframe) || "5m";
     const dayParam = req.query.day as string; // YYYY-MM-DD
+    const symbolParam = (req.query.symbol as string || "spx").toLowerCase();
+    const symbol = SYMBOLS.includes(symbolParam as SymbolType) ? (symbolParam as SymbolType) : "spx";
     
     if (!TIMEFRAMES.includes(timeframe)) {
       return res.status(400).json({ error: "Invalid timeframe parameter" });
     }
 
-    // Auto sync if stale (older than 15 minutes)
+    // Smart Option 3 Auto Sync Strategy:
+    // Await the sync inline during active trading hours (or if the cache is empty) to guarantee fresh pre/post/night data.
+    // Otherwise, fetch in the background to avoid any blocking during off-market hours.
     const now = Date.now();
-    if (now - lastSyncTimes[timeframe] > 15 * 60 * 1000) {
-      console.log(`[API] Cache stale for ${timeframe}. Triggering background sync...`);
-      syncTimeframe(timeframe).catch(err => console.error("Stale sync error:", err));
+    const ttl = getSymbolTimeframeTTL(symbol, timeframe);
+    const timeSinceLastSync = now - lastSyncTimes[symbol][timeframe];
+    const isCacheEmpty = !caches[symbol][timeframe] || caches[symbol][timeframe].length === 0;
+
+    if (isCacheEmpty || timeSinceLastSync > ttl) {
+      const isActive = isSymbolActive(symbol) || isCacheEmpty;
+      if (isActive) {
+        console.log(`[API] Cache stale (${timeSinceLastSync / 1000}s) for ${symbol} ${timeframe} during ACTIVE hours. Syncing inline...`);
+        await syncTimeframe(symbol, timeframe);
+      } else {
+        console.log(`[API] Cache stale (${timeSinceLastSync / 1000}s) for ${symbol} ${timeframe} during OFF hours. Syncing in background...`);
+        syncTimeframe(symbol, timeframe).catch(err => console.error("Off-hours background sync error:", err));
+      }
     }
 
-    const candles = caches[timeframe] || [];
+    const candles = caches[symbol][timeframe] || [];
 
     // Filter up to T-1 day by default (exclude today's New York date) if market is open or recently closed.
     // Once the market has been closed for more than 15 minutes (after 16:15 NY time) or on weekends, we allow showing today's (T-0) data.
-    const nyTimeStr = new Date().toLocaleString("en-US", { timeZone: "America/New_York" });
-    const nowNY = new Date(nyTimeStr);
-    const todayNYFormatted = `${nowNY.getFullYear()}-${String(nowNY.getMonth() + 1).padStart(2, "0")}-${String(nowNY.getDate()).padStart(2, "0")}`;
-
-    const dayOfWeekNY = nowNY.getDay(); // 0 is Sunday, 6 is Saturday
-    const hoursNY = nowNY.getHours();
-    const minutesNY = nowNY.getMinutes();
-
-    const isWeekend = dayOfWeekNY === 0 || dayOfWeekNY === 6;
-    const isPastMarketClosePlus15 = hoursNY > 16 || (hoursNY === 16 && minutesNY >= 15);
-    const allowToday = isWeekend || isPastMarketClosePlus15;
-
     let finalCandles = candles;
-    if (!allowToday) {
-      const upToTMinus1Candles = candles.filter(c => {
-        if (!c || typeof c.time !== "number") return false;
-        const candleNYStr = new Date(c.time).toLocaleString("en-US", { timeZone: "America/New_York" });
-        const candleNY = new Date(candleNYStr);
-        const candleNYFormatted = `${candleNY.getFullYear()}-${String(candleNY.getMonth() + 1).padStart(2, "0")}-${String(candleNY.getDate()).padStart(2, "0")}`;
-        return candleNYFormatted < todayNYFormatted;
-      });
-      finalCandles = upToTMinus1Candles.length > 0 ? upToTMinus1Candles : candles;
-    }
     let filtered: Candle[] = [];
 
     // If we are looking for a specific day's 5m intraday chart
     if (timeframe === "5m" && dayParam) {
-      filtered = (caches["5m"] || []).filter(c => {
+      filtered = (caches[symbol]["5m"] || []).filter(c => {
         if (!c || typeof c.time !== "number") return false;
         const candleNYStr = new Date(c.time).toLocaleString("en-US", { timeZone: "America/New_York" });
         const candleNY = new Date(candleNYStr);
-        const candleNYFormatted = `${candleNY.getFullYear()}-${String(candleNY.getMonth() + 1).padStart(2, "0")}-${String(candleNY.getDate()).padStart(2, "0")}`;
-        return candleNYFormatted === dayParam;
+        
+        const yyyy = candleNY.getFullYear();
+        const mm = String(candleNY.getMonth() + 1).padStart(2, "0");
+        const dd = String(candleNY.getDate()).padStart(2, "0");
+        const candleNYFormatted = `${yyyy}-${mm}-${dd}`;
+        
+        if (candleNYFormatted === dayParam) {
+          return true;
+        }
+        
+        // Smart inclusion of the previous calendar day's night session (starts at 18:00 NY time) for ES futures
+        if (symbol === "es") {
+          const targetDate = new Date(dayParam + "T12:00:00");
+          targetDate.setDate(targetDate.getDate() - 1);
+          const prevY = targetDate.getFullYear();
+          const prevM = String(targetDate.getMonth() + 1).padStart(2, "0");
+          const prevD = String(targetDate.getDate()).padStart(2, "0");
+          const prevDayFormatted = `${prevY}-${prevM}-${prevD}`;
+          
+          if (candleNYFormatted === prevDayFormatted) {
+            const hh = candleNY.getHours();
+            return hh >= 18;
+          }
+        }
+        
+        return false;
       });
 
       // If no data found for that specific day, fallback to latest 5m candles
@@ -257,7 +355,7 @@ app.get("/api/spx-data", async (req, res) => {
     const { highs: zoneHighs, lows: zoneLows } = findSwingPoints(finalZonesCandles, swingStrength, swingStrength);
     const zones = detectSupportResistanceZones(finalZonesCandles, zoneHighs, zoneLows, tolerancePercent);
 
-    // Find dailyPreviousClose from caches["1d"] to provide exact 100% correct daily price change ratio
+    // Find dailyPreviousClose from caches[symbol]["1d"] to provide exact 100% correct daily price change ratio
     let dailyPreviousClose = 0;
     if (filtered.length > 0) {
       const latestCandle = filtered[filtered.length - 1];
@@ -266,7 +364,7 @@ app.get("/api/spx-data", async (req, res) => {
         const latestNY = new Date(latestNYStr);
         const latestDateFormatted = `${latestNY.getFullYear()}-${String(latestNY.getMonth() + 1).padStart(2, "0")}-${String(latestNY.getDate()).padStart(2, "0")}`;
 
-        const dailyCandles = caches["1d"] || [];
+        const dailyCandles = caches[symbol]["1d"] || [];
         for (let i = dailyCandles.length - 1; i >= 0; i--) {
           const d = dailyCandles[i];
           const dNYStr = new Date(d.time).toLocaleString("en-US", { timeZone: "America/New_York" });
@@ -288,7 +386,7 @@ app.get("/api/spx-data", async (req, res) => {
       patterns,
       zones,
       trend,
-      lastUpdated: new Date(lastSyncTimes[timeframe] || Date.now()).toISOString(),
+      lastUpdated: new Date(lastSyncTimes[symbol][timeframe] || Date.now()).toISOString(),
       dailyPreviousClose: dailyPreviousClose || undefined,
     });
   } catch (error: any) {
@@ -300,10 +398,13 @@ app.get("/api/spx-data", async (req, res) => {
 // 2. API Endpoint: Manually trigger database sync
 app.post("/api/spx-sync", async (req, res) => {
   try {
+    const symbolParam = (req.query.symbol as string || "spx").toLowerCase();
+    const symbol = SYMBOLS.includes(symbolParam as SymbolType) ? (symbolParam as SymbolType) : "spx";
+
     // Trigger sync in the background so that the client request doesn't time out
-    syncAllTimeframes()
-      .then(() => console.log("[Sync] Manual sync complete in background."))
-      .catch(err => console.error("[Sync] Manual sync background error:", err));
+    for (const tf of TIMEFRAMES) {
+      syncTimeframe(symbol, tf).catch(err => console.error(`[Sync] Manual sync background error for ${symbol} ${tf}:`, err));
+    }
 
     res.json({ success: true, lastUpdated: new Date().toISOString() });
   } catch (error: any) {

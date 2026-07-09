@@ -64,6 +64,7 @@ interface PriceActionChartProps {
   onTogglePatternFilter?: (val: string) => void;
   getCategoryCount?: (val: string) => number;
   isChallengeMode?: boolean;
+  symbol?: "spx" | "es" | "qqq" | "spy";
 }
 
 export default function PriceActionChart({
@@ -91,6 +92,7 @@ export default function PriceActionChart({
   onTogglePatternFilter: propOnTogglePatternFilter,
   getCategoryCount: propGetCategoryCount,
   isChallengeMode = false,
+  symbol = "spx",
 }: PriceActionChartProps) {
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [showTimeframeDropdown, setShowTimeframeDropdown] = useState<boolean>(false);
@@ -1130,7 +1132,7 @@ export default function PriceActionChart({
           {/* Symbol */}
           <div className="flex items-center gap-1">
             <span className="flex h-1 w-1 sm:h-1.5 sm:w-1.5 rounded-full bg-[#00c805] animate-pulse"></span>
-            <span className="text-[11px] sm:text-xs font-black tracking-wider text-slate-100 font-mono">SPX</span>
+            <span className="text-[11px] sm:text-xs font-black tracking-wider text-slate-100 font-mono">{symbol.toUpperCase()}</span>
           </div>
 
           {/* Timeframe Selector */}

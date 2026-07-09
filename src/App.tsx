@@ -22,6 +22,7 @@ const PATTERN_CATEGORIES = [
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<"review" | "challenge">("review");
+  const [symbol, setSymbol] = useState<"spx" | "es" | "qqq" | "spy">("spx");
   const [timeframe, setTimeframe] = useState<"1m" | "5m" | "15m" | "4h" | "1d">("5m"); // Default to "5m" (5min K)
   const [candles, setCandles] = useState<Candle[]>([]);
   const [patterns, setPatterns] = useState<DetectedPattern[]>([]);
@@ -123,12 +124,12 @@ export default function App() {
     });
   });
 
-  // Fetch SPX data from full-stack backend with automatic retry on failure
-  const fetchData = async (tfStr = timeframe, retries = 3, delayMs = 1500) => {
+  // Fetch SPX/ES data from full-stack backend with automatic retry on failure
+  const fetchData = async (tfStr = timeframe, symStr = symbol, retries = 3, delayMs = 1500) => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/spx-data?timeframe=${tfStr}`);
-      if (!res.ok) throw new Error(`Failed to load SPX historical data (Status: ${res.status})`);
+      const res = await fetch(`/api/spx-data?timeframe=${tfStr}&symbol=${symStr}`);
+      if (!res.ok) throw new Error(`Failed to load historical data (Status: ${res.status})`);
       
       const contentType = res.headers.get("content-type");
       if (!contentType || !contentType.includes("application/json")) {
@@ -163,7 +164,7 @@ export default function App() {
       if (retries > 0) {
         console.warn(`[fetchData Warning] Failed to fetch, retrying in ${delayMs}ms... (${retries} attempts left). Error:`, err);
         setTimeout(() => {
-          fetchData(tfStr, retries - 1, delayMs);
+          fetchData(tfStr, symStr, retries - 1, delayMs);
         }, delayMs);
       } else {
         console.error("[fetchData Error] All fetch retries failed:", err);
@@ -172,10 +173,10 @@ export default function App() {
     }
   };
 
-  const fetchDrilldownDay = async (dayStr: string) => {
+  const fetchDrilldownDay = async (dayStr: string, symStr = symbol) => {
     setDrilldownLoading(true);
     try {
-      const res = await fetch(`/api/spx-data?timeframe=5m&day=${dayStr}`);
+      const res = await fetch(`/api/spx-data?timeframe=5m&day=${dayStr}&symbol=${symStr}`);
       if (!res.ok) throw new Error(`Failed to load intraday drilldown data (Status: ${res.status})`);
       
       const contentType = res.headers.get("content-type");
@@ -207,18 +208,18 @@ export default function App() {
     const dayStr = `${yyyy}-${mm}-${dd}`;
     
     setDrilldownDay(dayStr);
-    fetchDrilldownDay(dayStr);
+    fetchDrilldownDay(dayStr, symbol);
   };
 
   useEffect(() => {
-    fetchData();
-  }, [timeframe]);
+    fetchData(timeframe, symbol);
+  }, [timeframe, symbol]);
 
   // Handle active manual sync pull to Yahoo Finance
   const handleTriggerSync = async () => {
     setSyncing(true);
     try {
-      const res = await fetch("/api/spx-sync", { method: "POST" });
+      const res = await fetch(`/api/spx-sync?symbol=${symbol}`, { method: "POST" });
       if (!res.ok) throw new Error(`Failed to sync database (Status: ${res.status})`);
       
       const contentType = res.headers.get("content-type");
@@ -229,7 +230,7 @@ export default function App() {
       const payload = await res.json();
       setLastUpdated(payload.lastUpdated);
       // Re-fetch current visible timeline
-      await fetchData();
+      await fetchData(timeframe, symbol);
     } catch (err) {
       console.error("[handleTriggerSync Error]:", err);
     } finally {
@@ -312,8 +313,52 @@ export default function App() {
                 />
               </div>
               <span className="font-black text-[12px] sm:text-base tracking-widest font-space uppercase bg-gradient-to-b from-white via-neutral-100 to-neutral-400 bg-clip-text text-transparent drop-shadow-sm select-none">
-                SPX Price Action Compass
+                {symbol.toUpperCase()} Price Action Compass
               </span>
+            </div>
+
+            {/* Premium Ticker Switcher */}
+            <div className="flex items-center bg-[#0e0e12] p-1 rounded-md border border-neutral-800 text-[10px] font-mono font-black select-none h-auto shrink-0 gap-1 flex-wrap">
+              <button
+                onClick={() => setSymbol("spx")}
+                className={`px-2.5 py-0.5 rounded text-[10px] uppercase font-bold transition-all duration-150 cursor-pointer min-h-[20px] ${
+                  symbol === "spx"
+                    ? "bg-white text-black font-black border border-white shadow-[0_1px_4px_rgba(255,255,255,0.1)]"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                SPX 指数
+              </button>
+              <button
+                onClick={() => setSymbol("es")}
+                className={`px-2.5 py-0.5 rounded text-[10px] uppercase font-bold transition-all duration-150 cursor-pointer min-h-[20px] ${
+                  symbol === "es"
+                    ? "bg-white text-black font-black border border-white shadow-[0_1px_4px_rgba(255,255,255,0.1)]"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                ES 期货
+              </button>
+              <button
+                onClick={() => setSymbol("qqq")}
+                className={`px-2.5 py-0.5 rounded text-[10px] uppercase font-bold transition-all duration-150 cursor-pointer min-h-[20px] ${
+                  symbol === "qqq"
+                    ? "bg-white text-black font-black border border-white shadow-[0_1px_4px_rgba(255,255,255,0.1)]"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                QQQ 纳指
+              </button>
+              <button
+                onClick={() => setSymbol("spy")}
+                className={`px-2.5 py-0.5 rounded text-[10px] uppercase font-bold transition-all duration-150 cursor-pointer min-h-[20px] ${
+                  symbol === "spy"
+                    ? "bg-white text-black font-black border border-white shadow-[0_1px_4px_rgba(255,255,255,0.1)]"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                SPY 标普
+              </button>
             </div>
           </div>
 
@@ -358,7 +403,7 @@ export default function App() {
                     <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${priceChange >= 0 ? (isChineseStyle ? "bg-[#ff3b30]" : "bg-[#00c805]") : (isChineseStyle ? "bg-[#00c805]" : "bg-[#ff3b30]")}`}></span>
                   </span>
                   <span className="text-[10px] font-mono font-bold text-neutral-200 uppercase tracking-widest">
-                    SPX LATEST
+                    {symbol.toUpperCase()} LATEST
                   </span>
                 </div>
                 <div className="flex items-center gap-1 text-[10px] font-mono text-neutral-400 font-bold">
@@ -443,6 +488,7 @@ export default function App() {
                     patternFilters={patternFilters}
                     onTogglePatternFilter={handleTogglePatternFilter}
                     getCategoryCount={getCategoryCount}
+                    symbol={symbol}
                   />
 
                   {timeframe === "1d" && (
@@ -460,7 +506,7 @@ export default function App() {
                             日内分时 (5m)
                           </span>
                           <h3 className="text-sm font-bold text-slate-100 font-sans">
-                            SPX 5分钟走势分析 - <span className="text-white font-mono font-bold">{drilldownDay}</span>
+                            {symbol.toUpperCase()} 5分钟走势分析 - <span className="text-white font-mono font-bold">{drilldownDay}</span>
                           </h3>
                         </div>
                         <button
@@ -530,6 +576,7 @@ export default function App() {
                             showVolume={showVolume}
                             timeframe="5m"
                             isChineseStyle={isChineseStyle}
+                            symbol={symbol}
                           />
                         </div>
                       )}
@@ -584,7 +631,7 @@ export default function App() {
       <footer className="py-4 bg-[#050507] border-t border-neutral-900 text-[10px] text-neutral-200 mt-auto font-mono px-4 sm:px-6 select-none pb-16 sm:pb-3">
         <div className="max-w-[1800px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-0">
           <div className="text-center sm:text-left tracking-wider bg-gradient-to-r from-white via-neutral-200 to-neutral-400 bg-clip-text text-transparent font-bold">
-            © 2026 SPX Price Action Compass · 数据延迟 (t-1) · 非投资建议 学习用途
+            © 2026 {symbol.toUpperCase()} Price Action Compass · 数据延迟 (t-1) · 非投资建议 学习用途
           </div>
           <a
             href="https://github.com/kain26/SPX-Price-Action-Compass"
